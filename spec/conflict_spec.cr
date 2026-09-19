@@ -60,11 +60,24 @@ describe "conflict commands" do
     end
   end
 
+  it "selects snapshot mode for conflict resolution" do
+    Fixture.with_repo("conflict_mode") do |repo, location|
+      conflict(repo, location)
+
+      stream = Git::Stream.new(repo)
+      stream.resolve_all(:ours)
+
+      plan = stream.validate.as(Git::Ok(Git::Stream::Plan)).value
+      plan.mode.should eq(Git::Stream::RollbackMode::Snapshot)
+      plan.irreversible.should be_false
+    end
+  end
+
   it "resolves a conflict in favour of our side" do
     Fixture.with_repo("conflict_ours") do |repo, location|
       conflict(repo, location)
 
-      stream = Git::Stream.new(repo, allow_irreversible: true)
+      stream = Git::Stream.new(repo)
       slot   = stream.resolve_all(:ours)
       stream.run.error.should be_nil
       stream.seal
@@ -79,7 +92,7 @@ describe "conflict commands" do
     Fixture.with_repo("conflict_theirs") do |repo, location|
       conflict(repo, location)
 
-      stream = Git::Stream.new(repo, allow_irreversible: true)
+      stream = Git::Stream.new(repo)
       stream.resolve("file.txt", :theirs)
       stream.run.error.should be_nil
       stream.seal
@@ -92,7 +105,7 @@ describe "conflict commands" do
     Fixture.with_repo("conflict_union") do |repo, location|
       conflict(repo, location)
 
-      stream = Git::Stream.new(repo, allow_irreversible: true)
+      stream = Git::Stream.new(repo)
       stream.resolve_all(:union)
       stream.run.error.should be_nil
       stream.seal
@@ -104,11 +117,33 @@ describe "conflict commands" do
     end
   end
 
+  it "rolls a resolution back to the conflicted state" do
+    Fixture.with_repo("conflict_rollback") do |repo, location|
+      conflict(repo, location)
+
+      before = File.read(File.join(location, "file.txt"))
+
+      stream = Git::Stream.new(repo)
+      stream.resolve_all(:ours)
+      stream.run.error.should be_nil
+
+      repo.conditions.as(Git::Ok(Git::Conditions)).value.predicates.conflicted?.should be_false
+
+      stream.rollback.should be_nil
+      stream.seal
+
+      conditions = repo.conditions.as(Git::Ok(Git::Conditions)).value
+      conditions.predicates.conflicted?.should be_true
+      conditions.state.should eq(Git::State::Merge)
+      File.read(File.join(location, "file.txt")).should eq(before)
+    end
+  end
+
   it "commits a resolved merge with two parents" do
     Fixture.with_repo("conflict_commit") do |repo, location|
       conflict(repo, location)
 
-      resolve = Git::Stream.new(repo, allow_irreversible: true)
+      resolve = Git::Stream.new(repo)
       resolve.resolve_all(:ours)
       resolve.run.error.should be_nil
       resolve.seal
@@ -133,7 +168,7 @@ describe "conflict commands" do
     Fixture.with_repo("conflict_none") do |repo, location|
       Fixture.seed(repo, location)
 
-      stream = Git::Stream.new(repo, allow_irreversible: true)
+      stream = Git::Stream.new(repo)
       stream.resolve_all(:ours)
 
       stream.validate.should be_a(Git::Err)
@@ -144,7 +179,7 @@ describe "conflict commands" do
     Fixture.with_repo("conflict_abort") do |repo, location|
       conflict(repo, location)
 
-      stream = Git::Stream.new(repo, allow_irreversible: true)
+      stream = Git::Stream.new(repo)
       stream.abort_integration
       stream.run.error.should be_nil
       stream.seal
@@ -152,6 +187,25 @@ describe "conflict commands" do
       Fixture.state(repo).should eq(Git::State::Clean)
       File.read(File.join(location, "file.txt")).should eq("ours\n")
       repo.conditions.as(Git::Ok(Git::Conditions)).value.predicates.conflicted?.should be_false
+    end
+  end
+
+  it "rolls an abort back to the conflicted merge" do
+    Fixture.with_repo("conflict_abort_rollback") do |repo, location|
+      conflict(repo, location)
+
+      stream = Git::Stream.new(repo)
+      stream.abort_integration
+      stream.run.error.should be_nil
+
+      Fixture.state(repo).should eq(Git::State::Clean)
+
+      stream.rollback.should be_nil
+      stream.seal
+
+      conditions = repo.conditions.as(Git::Ok(Git::Conditions)).value
+      conditions.state.should eq(Git::State::Merge)
+      conditions.predicates.conflicted?.should be_true
     end
   end
 end
@@ -195,12 +249,12 @@ describe "rebase conflicts" do
       stopped.run.error.should_not be_nil
       stopped.seal
 
-      resolve = Git::Stream.new(repo, allow_irreversible: true)
+      resolve = Git::Stream.new(repo)
       resolve.resolve_all(:theirs)
       resolve.run.error.should be_nil
       resolve.seal
 
-      stream = Git::Stream.new(repo, allow_irreversible: true)
+      stream = Git::Stream.new(repo)
       slot   = stream.continue_rebase
       stream.run.error.should be_nil
       stream.seal
@@ -227,7 +281,7 @@ describe "rebase conflicts" do
       stopped.run.error.should_not be_nil
       stopped.seal
 
-      stream = Git::Stream.new(repo, allow_irreversible: true)
+      stream = Git::Stream.new(repo)
       stream.abort_rebase
       stream.run.error.should be_nil
       stream.seal
@@ -235,6 +289,34 @@ describe "rebase conflicts" do
       Fixture.state(repo).should eq(Git::State::Clean)
       Fixture.head(repo).should eq(before)
       File.read(File.join(location, "file.txt")).should eq("theirs\n")
+    end
+  end
+
+  it "rolls a rebase abort back to the stopped rebase" do
+    Fixture.with_repo("rebase_abort_rollback") do |repo, location|
+      diverge(repo, location)
+
+      checkout = Git::Stream.new(repo)
+      checkout.checkout("topic")
+      checkout.run.error.should be_nil
+      checkout.seal
+
+      stopped = Git::Stream.new(repo)
+      stopped.rebase(Fixture::BRANCH)
+      stopped.run.error.should_not be_nil
+      stopped.seal
+
+      stream = Git::Stream.new(repo)
+      stream.abort_rebase
+      stream.run.error.should be_nil
+
+      Fixture.state(repo).should eq(Git::State::Clean)
+
+      stream.rollback.should be_nil
+      stream.seal
+
+      Git::Commands::REBASE_STATES.includes?(Fixture.state(repo).to_set).should be_true
+      repo.conditions.as(Git::Ok(Git::Conditions)).value.predicates.conflicted?.should be_true
     end
   end
 end

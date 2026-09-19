@@ -296,9 +296,6 @@ module Git
         if origin.predicates.unborn_head?
           return Err.invalid("worktree commands require a born HEAD to snapshot")
         end
-        if origin.predicates.conflicted?
-          return Err.invalid("worktree commands cannot be snapshotted while the index has conflicts")
-        end
       end
 
       plan   = Plan.new(mode, current, @commands.size, !irreversible.nil?)

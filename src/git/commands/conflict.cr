@@ -18,7 +18,7 @@ module Git
       describe(:resolve, CONFLICT_STATES, nil,
         Predicate::Conflicted, Predicate::Bare,
         Predicate::DirtyIndex, Predicate::None,
-        Reversibility::External)
+        Reversibility::Worktree)
 
       def initialize(@paths : Array(String), @resolution : Resolution)
       end
@@ -37,7 +37,7 @@ module Git
       describe(:resolve_all, CONFLICT_STATES, nil,
         Predicate::Conflicted, Predicate::Bare,
         Predicate::DirtyIndex, Predicate::Conflicted,
-        Reversibility::External)
+        Reversibility::Worktree)
 
       def initialize(@resolution : Resolution)
       end

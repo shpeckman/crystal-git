@@ -221,7 +221,7 @@ module Git
       describe(:abort_integration, SEQUENCE_STATES, State::Clean,
         Predicate::None, Predicate::Bare,
         Predicate::None, Predicate::Conflicted | Predicate::DirtyIndex,
-        Reversibility::External)
+        Reversibility::Worktree)
 
       def execute(repo : Repo, undo : Array(Undo)) : Ok(Value) | Err
         head = repo.head_oid
@@ -333,7 +333,7 @@ module Git
       describe(:continue_rebase, REBASE_STATES, State::Clean,
         Predicate::None, Predicate::Bare | Predicate::Conflicted,
         Predicate::None, Predicate::DirtyIndex,
-        Reversibility::External)
+        Reversibility::Worktree)
 
       def execute(repo : Repo, undo : Array(Undo)) : Ok(Value) | Err
         signature = repo.signature
@@ -384,7 +384,7 @@ module Git
       describe(:abort_rebase, REBASE_STATES, State::Clean,
         Predicate::None, Predicate::Bare,
         Predicate::None, Predicate::Conflicted | Predicate::DirtyIndex,
-        Reversibility::External)
+        Reversibility::Worktree)
 
       def execute(repo : Repo, undo : Array(Undo)) : Ok(Value) | Err
         rebase = uninitialized LibGit2::Rebase

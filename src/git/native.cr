@@ -1,4 +1,6 @@
 # src/git/native.cr
+require "file_utils"
+
 module Git
   module Native
     def self.strarray(paths : Array(String), & : LibGit2::Strarray* -> Err?) : Err?
@@ -33,6 +35,35 @@ module Git
 
     def self.pointer(text : String?) : LibC::Char*
       text ? text.to_unsafe : Pointer(LibC::Char).null
+    end
+
+    def self.read_bytes(path : String) : Bytes
+      File.open(path, "rb") { |file| file.getb_to_end }
+    end
+
+    def self.write_bytes(path : String, bytes : Bytes) : Nil
+      Dir.mkdir_p(File.dirname(path))
+      File.open(path, "wb") { |file| file.write(bytes) }
+    end
+
+    def self.discard(path : String) : Nil
+      if File.directory?(path)
+        FileUtils.rm_rf(path)
+      elsif File.exists?(path) || File.symlink?(path)
+        File.delete(path)
+      end
+    end
+
+    def self.workdir(repo : Repo) : Ok(String) | Err
+      path = text(LibGit2.repository_workdir(repo.handle))
+      return Err.invalid("repository has no working directory") unless path
+      Ok(String).new(path)
+    end
+
+    def self.gitdir(repo : Repo) : Ok(String) | Err
+      path = text(LibGit2.repository_path(repo.handle))
+      return Err.invalid("repository has no git directory") unless path
+      Ok(String).new(path)
     end
 
     def self.commit(repo : Repo, revspec : String) : Ok(LibGit2::Commit) | Err
