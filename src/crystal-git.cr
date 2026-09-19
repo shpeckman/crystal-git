@@ -1,6 +1,5 @@
 # src/crystal-git.cr
 require "./git/libgit2"
-require "./git/libgit2_ext"
 require "./git/error"
 require "./git/library"
 require "./git/oid"
