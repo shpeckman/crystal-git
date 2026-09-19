@@ -1,0 +1,36 @@
+# src/git/c/oid.cr
+@[Link("git2")]
+lib LibGit2
+  # git2/oid.h
+  enum OidType
+    SHA1   = 1
+    SHA256 = 2
+  end
+
+  struct Oid
+    type : LibC::UInt8
+    id   : StaticArray(LibC::UInt8, 32)
+  end
+
+  type OidShorten = Void*
+
+  fun oid_from_string = git_oid_from_string(out_oid : Oid*, str : LibC::Char*, type : OidType) : LibC::Int
+  fun oid_from_prefix = git_oid_from_prefix(out_oid : Oid*, str : LibC::Char*, len : LibC::SizeT, type : OidType) : LibC::Int
+  fun oid_from_raw = git_oid_from_raw(out_oid : Oid*, raw : LibC::UInt8*, type : OidType) : LibC::Int
+  fun oid_fmt = git_oid_fmt(out_str : LibC::Char*, id : Oid*) : LibC::Int
+  fun oid_nfmt = git_oid_nfmt(out_str : LibC::Char*, n : LibC::SizeT, id : Oid*) : LibC::Int
+  fun oid_pathfmt = git_oid_pathfmt(out_str : LibC::Char*, id : Oid*) : LibC::Int
+  fun oid_tostr_s = git_oid_tostr_s(oid : Oid*) : LibC::Char*
+  fun oid_tostr = git_oid_tostr(out_str : LibC::Char*, n : LibC::SizeT, id : Oid*) : LibC::Char*
+  fun oid_cpy = git_oid_cpy(out_oid : Oid*, src : Oid*) : LibC::Int
+  fun oid_cmp = git_oid_cmp(a : Oid*, b : Oid*) : LibC::Int
+  fun oid_equal = git_oid_equal(a : Oid*, b : Oid*) : LibC::Int
+  fun oid_ncmp = git_oid_ncmp(a : Oid*, b : Oid*, len : LibC::SizeT) : LibC::Int
+  fun oid_streq = git_oid_streq(id : Oid*, str : LibC::Char*) : LibC::Int
+  fun oid_strcmp = git_oid_strcmp(id : Oid*, str : LibC::Char*) : LibC::Int
+  fun oid_is_zero = git_oid_is_zero(id : Oid*) : LibC::Int
+
+  fun oid_shorten_new = git_oid_shorten_new(min_length : LibC::SizeT) : OidShorten
+  fun oid_shorten_add = git_oid_shorten_add(os : OidShorten, text_id : LibC::Char*) : LibC::Int
+  fun oid_shorten_free = git_oid_shorten_free(os : OidShorten)
+end
