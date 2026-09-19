@@ -1,7 +1,8 @@
 # src/git/repo.cr
 module Git
   class Repo
-    getter handle : LibGit2::Repository
+    getter handle        : LibGit2::Repository
+    property credentials : Credentials?
 
     @index     : LibGit2::Index
     @signature : LibGit2::Signature*
@@ -43,9 +44,10 @@ module Git
     end
 
     def initialize(@handle : LibGit2::Repository)
-      @index     = Pointer(Void).null.as(LibGit2::Index)
-      @signature = Pointer(LibGit2::Signature).null
-      @closed    = false
+      @index       = Pointer(Void).null.as(LibGit2::Index)
+      @signature   = Pointer(LibGit2::Signature).null
+      @closed      = false
+      @credentials = nil
     end
 
     def index : Ok(LibGit2::Index) | Err

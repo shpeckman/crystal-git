@@ -333,7 +333,7 @@ describe "integration commands" do
       revert.run.error.should be_nil
       revert.seal
 
-      stream = Git::Stream.new(repo)
+      stream = Git::Stream.new(repo, allow_irreversible: true)
       slot   = stream.abort_integration
       stream.run.error.should be_nil
       stream.seal

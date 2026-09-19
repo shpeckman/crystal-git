@@ -9,11 +9,13 @@ module Git
     getter sets          : Predicate
     getter clears        : Predicate
     getter reversibility : Reversibility
+    getter requires_in   : StateSet
 
     def initialize(@name : Symbol, @legal_in : StateSet, @leaves : State?,
                    @requires : Predicate, @forbids : Predicate,
                    @sets : Predicate, @clears : Predicate,
-                   @reversibility : Reversibility)
+                   @reversibility : Reversibility,
+                   @requires_in   : StateSet = StateSet::All)
     end
   end
 
@@ -21,7 +23,7 @@ module Git
     abstract def descriptor : Descriptor
     abstract def execute(repo : Repo, undo : Array(Undo)) : Ok(Value) | Err
 
-    macro describe(name, legal_in, leaves, requires, forbids, sets, clears, reversibility)
+    macro describe(name, legal_in, leaves, requires, forbids, sets, clears, reversibility, requires_in = ::Git::StateSet::All)
       DESCRIPTOR = ::Git::Descriptor.new(
         {{name}},
         {{legal_in}},
@@ -31,6 +33,7 @@ module Git
         {{sets}},
         {{clears}},
         {{reversibility}},
+        {{requires_in}},
       )
 
       def descriptor : ::Git::Descriptor

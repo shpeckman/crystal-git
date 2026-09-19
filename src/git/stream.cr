@@ -159,8 +159,28 @@ module Git
       Slot(UInt64).new(queue(Commands::Rebase.new(upstream, onto, branch)))
     end
 
+    def continue_rebase : Slot(UInt64)
+      Slot(UInt64).new(queue(Commands::ContinueRebase.new))
+    end
+
     def abort_rebase : Slot(Bool)
       Slot(Bool).new(queue(Commands::AbortRebase.new))
+    end
+
+    def conflicts : Slot(Array(ConflictEntry))
+      Slot(Array(ConflictEntry)).new(queue(Commands::Conflicts.new))
+    end
+
+    def resolve(path : String, resolution : Resolution) : Slot(Int32)
+      Slot(Int32).new(queue(Commands::Resolve.new([path], resolution)))
+    end
+
+    def resolve(paths : Array(String), resolution : Resolution) : Slot(Int32)
+      Slot(Int32).new(queue(Commands::Resolve.new(paths, resolution)))
+    end
+
+    def resolve_all(resolution : Resolution) : Slot(Int32)
+      Slot(Int32).new(queue(Commands::ResolveAll.new(resolution)))
     end
 
     def stash(*, message : String? = nil) : Slot(Oid)
@@ -195,12 +215,14 @@ module Git
       Slot(Array(StashEntry)).new(queue(Commands::ListStash.new))
     end
 
-    def fetch(remote : String = "origin", refspecs : Array(String) = [] of String, prune : Prune = Prune::Default) : Slot(String)
-      Slot(String).new(queue(Commands::Fetch.new(remote, refspecs, prune)))
+    def fetch(remote : String = "origin", refspecs : Array(String) = [] of String,
+              prune : Prune = Prune::Default, credentials : Credentials? = nil) : Slot(String)
+      Slot(String).new(queue(Commands::Fetch.new(remote, refspecs, prune, credentials)))
     end
 
-    def push(remote : String = "origin", refspecs : Array(String) = [] of String) : Slot(String)
-      Slot(String).new(queue(Commands::Push.new(remote, refspecs)))
+    def push(remote : String = "origin", refspecs : Array(String) = [] of String,
+             credentials : Credentials? = nil) : Slot(String)
+      Slot(String).new(queue(Commands::Push.new(remote, refspecs, credentials)))
     end
 
     def status : Slot(Array(StatusEntry))
@@ -274,6 +296,9 @@ module Git
         if origin.predicates.unborn_head?
           return Err.invalid("worktree commands require a born HEAD to snapshot")
         end
+        if origin.predicates.conflicted?
+          return Err.invalid("worktree commands cannot be snapshotted while the index has conflicts")
+        end
       end
 
       plan   = Plan.new(mode, current, @commands.size, !irreversible.nil?)
@@ -337,10 +362,24 @@ module Git
       end
 
       failure = nil.as(Err?)
+      intents = [] of RefIntent
+
       while record = @undo.pop?
+        if intent = record.intent
+          intents << intent
+          next
+        end
+
+        if err = flush(intents)
+          failure ||= err
+        end
         if err = record.apply(@repo)
           failure ||= err
         end
+      end
+
+      if err = flush(intents)
+        failure ||= err
       end
 
       if snapshot = @snapshot
@@ -366,6 +405,13 @@ module Git
 
     def sealed? : Bool
       @phase.sealed?
+    end
+
+    private def flush(intents : Array(RefIntent)) : Err?
+      return nil if intents.empty?
+      batch = intents.dup
+      intents.clear
+      RefTransaction.apply(@repo, batch)
     end
 
     private def queue_stage(pathspec : Array(String), flags : StageFlag) : Slot(UInt64)
@@ -444,10 +490,14 @@ module Git
       unless entry.legal_in.includes?(conditions.state.to_set)
         return Err.invalid("#{entry.name} is illegal while the repository is in #{conditions.state} state")
       end
-      missing = entry.requires & ~conditions.predicates
-      unless missing.none?
-        return Err.invalid("#{entry.name} requires #{missing}")
+
+      if entry.requires_in.includes?(conditions.state.to_set)
+        missing = entry.requires & ~conditions.predicates
+        unless missing.none?
+          return Err.invalid("#{entry.name} requires #{missing}")
+        end
       end
+
       blocked = entry.forbids & conditions.predicates
       unless blocked.none?
         return Err.invalid("#{entry.name} is blocked by #{blocked}")

@@ -5,7 +5,7 @@ module Git
       describe(:commit, MUTABLE_STATES, State::Clean,
         Predicate::DirtyIndex, Predicate::Bare | Predicate::Conflicted,
         Predicate::None, Predicate::DirtyIndex,
-        Reversibility::RefOnly)
+        Reversibility::RefOnly, CLEAN_ONLY)
 
       def initialize(@message : String)
       end

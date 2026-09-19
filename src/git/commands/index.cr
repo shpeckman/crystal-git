@@ -93,15 +93,15 @@ module Git
         end
         return failure if failure
 
-        if err = Git.check(LibGit2.index_write(handle))
-          return err
-        end
-
         if workdir = Native.text(LibGit2.repository_workdir(repo.handle))
           matched.each do |path|
             full = File.join(workdir, path)
             File.delete(full) if File.exists?(full)
           end
+        end
+
+        if err = Git.check(LibGit2.index_write(handle))
+          return err
         end
 
         Ok(Value).new(matched.size.to_u64)

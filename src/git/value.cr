@@ -9,7 +9,8 @@ module Git
                 MergeOutcome |
                 Array(String) |
                 Array(StatusEntry) |
-                Array(StashEntry)
+                Array(StashEntry) |
+                Array(ConflictEntry)
 
   alias Outcome = Ok(Value) | Err
 

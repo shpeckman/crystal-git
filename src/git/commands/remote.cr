@@ -7,7 +7,7 @@ module Git
         Predicate::None, Predicate::None,
         Reversibility::External)
 
-      def initialize(@remote : String, @refspecs : Array(String), @prune : Prune)
+      def initialize(@remote : String, @refspecs : Array(String), @prune : Prune, @credentials : Credentials?)
       end
 
       def execute(repo : Repo, undo : Array(Undo)) : Ok(Value) | Err
@@ -22,6 +22,17 @@ module Git
           return err
         end
         opts.prune = @prune.to_native
+
+        credentials = @credentials || repo.credentials
+        session     = credentials ? Credentials::Session.new(credentials) : nil
+        boxed       = session ? Box.box(session) : Pointer(Void).null
+
+        if session
+          callbacks = opts.callbacks
+          callbacks.credentials = Credentials.callback
+          callbacks.payload = boxed
+          opts.callbacks = callbacks
+        end
 
         failure = if @refspecs.empty?
                     Git.check(LibGit2.remote_fetch(remote, nil, pointerof(opts), nil))
@@ -43,7 +54,7 @@ module Git
         Predicate::None, Predicate::None,
         Reversibility::External)
 
-      def initialize(@remote : String, @refspecs : Array(String))
+      def initialize(@remote : String, @refspecs : Array(String), @credentials : Credentials?)
       end
 
       def execute(repo : Repo, undo : Array(Undo)) : Ok(Value) | Err
@@ -56,6 +67,17 @@ module Git
         if err = Git.check(LibGit2.push_options_init(pointerof(opts), 1_u32))
           LibGit2.remote_free(remote)
           return err
+        end
+
+        credentials = @credentials || repo.credentials
+        session     = credentials ? Credentials::Session.new(credentials) : nil
+        boxed       = session ? Box.box(session) : Pointer(Void).null
+
+        if session
+          callbacks = opts.callbacks
+          callbacks.credentials = Credentials.callback
+          callbacks.payload = boxed
+          opts.callbacks = callbacks
         end
 
         failure = if @refspecs.empty?

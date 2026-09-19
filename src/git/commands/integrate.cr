@@ -1,6 +1,44 @@
 # src/git/commands/integrate.cr
 module Git
   module Commands
+    module RebaseDriver
+      def self.drive(repo : Repo, rebase : LibGit2::Rebase, signature : LibGit2::Signature*) : Ok(UInt64) | Err
+        applied = 0_u64
+
+        loop do
+          operation = uninitialized LibGit2::RebaseOperation*
+          result = LibGit2.rebase_next(pointerof(operation), rebase)
+          break if result == LibGit2::ErrorCode::ITEROVER.value
+          return Err.capture(result) if result != 0
+
+          if operation.value.type.exec?
+            return Err.invalid("rebase exec operations are not supported")
+          end
+
+          if err = repo.reload_index
+            return err
+          end
+
+          index = repo.index
+          return index if index.is_a?(Err)
+
+          if LibGit2.index_has_conflicts(index.value) == 1
+            return Err.new(LibGit2::ErrorCode::EUNMERGED, LibGit2::ErrorType::REBASE,
+              "rebase stopped at conflicts; resolve them and continue the rebase, or abort it")
+          end
+
+          created = uninitialized LibGit2::Oid
+          committed = LibGit2.rebase_commit(pointerof(created), rebase, nil, signature, nil, nil)
+          next if committed == LibGit2::ErrorCode::EAPPLIED.value
+          return Err.capture(committed) if committed != 0
+
+          applied += 1
+        end
+
+        Ok(UInt64).new(applied)
+      end
+    end
+
     class Merge < Command
       describe(:merge, CLEAN_ONLY, State::Merge,
         Predicate::None, Predicate::Bare | Predicate::Conflicted | Predicate::DirtyIndex,
@@ -183,13 +221,9 @@ module Git
       describe(:abort_integration, SEQUENCE_STATES, State::Clean,
         Predicate::None, Predicate::Bare,
         Predicate::None, Predicate::Conflicted | Predicate::DirtyIndex,
-        Reversibility::Worktree)
+        Reversibility::External)
 
       def execute(repo : Repo, undo : Array(Undo)) : Ok(Value) | Err
-        record = Undo.position(repo)
-        return record if record.is_a?(Err)
-        undo << record.value
-
         head = repo.head_oid
         return head if head.is_a?(Err)
 
@@ -227,8 +261,8 @@ module Git
       def execute(repo : Repo, undo : Array(Undo)) : Ok(Value) | Err
         record = Undo.position(repo)
         return record if record.is_a?(Err)
-        undo << Undo::RebaseAbort.new
         undo << record.value
+        undo << Undo::RebaseAbort.new
 
         signature = repo.signature
         return signature if signature.is_a?(Err)
@@ -236,9 +270,7 @@ module Git
         handles = [] of LibGit2::AnnotatedCommit
 
         upstream = Native.annotated(repo, @upstream)
-        if upstream.is_a?(Err)
-          return upstream
-        end
+        return upstream if upstream.is_a?(Err)
         handles << upstream.value
 
         onto_handle = Native.null_annotated
@@ -274,37 +306,10 @@ module Git
         release(handles)
         return init if init
 
-        applied = 0_u64
-        loop do
-          operation = uninitialized LibGit2::RebaseOperation*
-          result = LibGit2.rebase_next(pointerof(operation), rebase)
-          break if result == LibGit2::ErrorCode::ITEROVER.value
-
-          if result != 0
-            failure = Err.capture(result)
-            LibGit2.rebase_free(rebase)
-            return failure
-          end
-
-          if operation.value.type.exec?
-            LibGit2.rebase_free(rebase)
-            return Err.invalid("rebase exec operations are not supported")
-          end
-
-          created = uninitialized LibGit2::Oid
-          committed = LibGit2.rebase_commit(pointerof(created), rebase, nil, signature.value, nil, nil)
-
-          if committed == LibGit2::ErrorCode::EAPPLIED.value
-            next
-          end
-
-          if committed != 0
-            failure = Err.capture(committed)
-            LibGit2.rebase_free(rebase)
-            return failure
-          end
-
-          applied += 1
+        driven = RebaseDriver.drive(repo, rebase, signature.value)
+        if driven.is_a?(Err)
+          LibGit2.rebase_free(rebase)
+          return driven
         end
 
         finish = Git.check(LibGit2.rebase_finish(rebase, signature.value))
@@ -314,7 +319,7 @@ module Git
         if err = repo.reload_index
           return err
         end
-        Ok(Value).new(applied)
+        Ok(Value).new(driven.value)
       end
 
       private def release(handles : Array(LibGit2::AnnotatedCommit)) : Nil
@@ -322,17 +327,66 @@ module Git
       end
     end
 
+    class ContinueRebase < Command
+      NO_OPERATION = UInt64::MAX
+
+      describe(:continue_rebase, REBASE_STATES, State::Clean,
+        Predicate::None, Predicate::Bare | Predicate::Conflicted,
+        Predicate::None, Predicate::DirtyIndex,
+        Reversibility::External)
+
+      def execute(repo : Repo, undo : Array(Undo)) : Ok(Value) | Err
+        signature = repo.signature
+        return signature if signature.is_a?(Err)
+
+        rebase = uninitialized LibGit2::Rebase
+        if err = Git.check(LibGit2.rebase_open(pointerof(rebase), repo.handle, nil))
+          return err
+        end
+
+        if err = repo.reload_index
+          LibGit2.rebase_free(rebase)
+          return err
+        end
+
+        applied = 0_u64
+        if LibGit2.rebase_operation_current(rebase) != NO_OPERATION
+          created = uninitialized LibGit2::Oid
+          committed = LibGit2.rebase_commit(pointerof(created), rebase, nil, signature.value, nil, nil)
+
+          if committed != 0 && committed != LibGit2::ErrorCode::EAPPLIED.value
+            failure = Err.capture(committed)
+            LibGit2.rebase_free(rebase)
+            return failure
+          end
+
+          applied += 1 if committed == 0
+        end
+
+        driven = RebaseDriver.drive(repo, rebase, signature.value)
+        if driven.is_a?(Err)
+          LibGit2.rebase_free(rebase)
+          return driven
+        end
+
+        finish = Git.check(LibGit2.rebase_finish(rebase, signature.value))
+        LibGit2.rebase_free(rebase)
+        return finish if finish
+
+        if err = repo.reload_index
+          return err
+        end
+        Ok(Value).new(applied + driven.value)
+      end
+    end
+
     class AbortRebase < Command
       describe(:abort_rebase, REBASE_STATES, State::Clean,
         Predicate::None, Predicate::Bare,
         Predicate::None, Predicate::Conflicted | Predicate::DirtyIndex,
-        Reversibility::Worktree)
+        Reversibility::External)
 
       def execute(repo : Repo, undo : Array(Undo)) : Ok(Value) | Err
-        record = Undo.position(repo)
-        return record if record.is_a?(Err)
-        undo << record.value
-
         rebase = uninitialized LibGit2::Rebase
         if err = Git.check(LibGit2.rebase_open(pointerof(rebase), repo.handle, nil))
           return err

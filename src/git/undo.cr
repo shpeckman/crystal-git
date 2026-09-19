@@ -3,6 +3,10 @@ module Git
   abstract class Undo
     abstract def apply(repo : Repo) : Err?
 
+    def intent : RefIntent?
+      nil
+    end
+
     def self.position(repo : Repo) : Ok(Undo) | Err
       handle = repo.handle
 
@@ -51,20 +55,14 @@ module Git
     def initialize(@name : String, @target : Oid?, @existed : Bool)
     end
 
+    def intent : RefIntent?
+      RefIntent.new(@name, @existed ? @target : nil)
+    end
+
     def apply(repo : Repo) : Err?
-      target = @target
-      unless @existed && target
-        result = LibGit2.reference_remove(repo.handle, @name)
-        return nil if result == LibGit2::ErrorCode::ENOTFOUND.value
-        return Git.check(result)
-      end
-      raw = target.raw
-      ref = uninitialized LibGit2::Reference
-      if err = Git.check(LibGit2.reference_create(pointerof(ref), repo.handle, @name, pointerof(raw), 1, nil))
-        return err
-      end
-      LibGit2.reference_free(ref)
-      nil
+      record = intent
+      return nil unless record
+      RefTransaction.write(repo, record)
     end
   end
 

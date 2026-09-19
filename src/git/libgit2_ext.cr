@@ -52,4 +52,12 @@ lib LibGit2
   fun remote_fetch = git_remote_fetch(remote : Remote, refspecs : Strarray*, opts : FetchOptions*, reflog_message : LibC::Char*) : LibC::Int
   fun remote_push = git_remote_push(remote : Remote, refspecs : Strarray*, opts : PushOptions*) : LibC::Int
   fun remote_prune = git_remote_prune(remote : Remote, callbacks : RemoteCallbacks*) : LibC::Int
+
+  fun transaction_new = git_transaction_new(out_tx : Transaction*, repo : Repository) : LibC::Int
+  fun transaction_lock_ref = git_transaction_lock_ref(tx : Transaction, refname : LibC::Char*) : LibC::Int
+  fun transaction_set_target = git_transaction_set_target(tx : Transaction, refname : LibC::Char*, target : Oid*, sig : Signature*, msg : LibC::Char*) : LibC::Int
+  fun transaction_set_symbolic_target = git_transaction_set_symbolic_target(tx : Transaction, refname : LibC::Char*, target : LibC::Char*, sig : Signature*, msg : LibC::Char*) : LibC::Int
+  fun transaction_remove = git_transaction_remove(tx : Transaction, refname : LibC::Char*) : LibC::Int
+  fun transaction_commit = git_transaction_commit(tx : Transaction) : LibC::Int
+  fun transaction_free = git_transaction_free(tx : Transaction)
 end
