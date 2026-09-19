@@ -1,9 +1,8 @@
 # makefile
-# Makefile
 
-.PHONY: all install test clean check-deps
+.PHONY: all test clean check-deps
 
-all: install test
+all: check-deps test
 
 check-deps:
 	@echo "Checking system dependencies..."
@@ -35,13 +34,14 @@ check-deps:
 	}
 	@echo "All dependencies are satisfied."
 
-install: check-deps
-	shards install
-
-test: install
+test: check-deps
 	crystal spec
 
+bindings: check-deps
+	crystal spec spec/libgit2_spec.cr
+
+stream: check-deps
+	crystal spec spec/stream_spec.cr spec/commands_spec.cr spec/rollback_spec.cr
+
 clean:
-	rm -rf lib/
-	rm -rf .shards/
 	rm -rf tmp_*
