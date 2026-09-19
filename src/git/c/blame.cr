@@ -5,7 +5,7 @@ lib LibGit2
   # BLAME (git2/blame.h)
   # ============================================================================
 
-  enum BlameFlag
+  enum BlameFlag : UInt32
     NORMAL                          =  0
     TRACK_COPIES_SAME_FILE          =  1
     TRACK_COPIES_SAME_COMMIT_MOVES  =  2
@@ -18,8 +18,8 @@ lib LibGit2
 
   struct BlameOptions
     version              : LibC::UInt
-    flags                : LibC::UInt32
-    min_match_characters : LibC::UInt16
+    flags                : UInt32
+    min_match_characters : UInt16
     newest_commit        : Oid
     oldest_commit        : Oid
     min_line             : LibC::SizeT

@@ -5,7 +5,7 @@ lib LibGit2
   # BLOBS (git2/blob.h)
   # ============================================================================
 
-  enum BlobFilterFlag
+  enum BlobFilterFlag : UInt32
     CHECK_FOR_BINARY       = 1
     NO_SYSTEM_ATTRIBUTES   = 2
     ATTRIBUTES_FROM_HEAD   = 4
@@ -14,7 +14,7 @@ lib LibGit2
 
   struct BlobFilterOptions
     version        : LibC::Int
-    flags          : LibC::UInt32
+    flags          : UInt32
     commit_id      : Oid*
     attr_commit_id : Oid
   end

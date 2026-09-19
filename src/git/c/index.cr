@@ -6,22 +6,22 @@ lib LibGit2
   # ============================================================================
 
   struct IndexTime
-    seconds     : LibC::Int32
-    nanoseconds : LibC::UInt32
+    seconds     : Int32
+    nanoseconds : UInt32
   end
 
   struct IndexEntry
     ctime          : IndexTime
     mtime          : IndexTime
-    dev            : LibC::UInt32
-    ino            : LibC::UInt32
-    mode           : LibC::UInt32
-    uid            : LibC::UInt32
-    gid            : LibC::UInt32
-    file_size      : LibC::UInt32
+    dev            : UInt32
+    ino            : UInt32
+    mode           : UInt32
+    uid            : UInt32
+    gid            : UInt32
+    file_size      : UInt32
     id             : Oid
-    flags          : LibC::UInt16
-    flags_extended : LibC::UInt16
+    flags          : UInt16
+    flags_extended : UInt16
     path           : LibC::Char*
   end
 

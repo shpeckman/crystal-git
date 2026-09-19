@@ -5,7 +5,7 @@ lib LibGit2
   # MERGE (git2/merge.h)
   # ============================================================================
 
-  enum MergeFlag
+  enum MergeFlag : UInt32
     FIND_RENAMES     =  1
     FAIL_ON_CONFLICT =  2
     SKIP_REUC        =  4
@@ -20,7 +20,7 @@ lib LibGit2
     UNION  = 3
   end
 
-  enum MergeFileFlag
+  enum MergeFileFlag : UInt32
     DEFAULT                  =   0
     STYLE_MERGE              =   1
     STYLE_DIFF3              =   2
@@ -48,7 +48,7 @@ lib LibGit2
     our_label      : LibC::Char*
     their_label    : LibC::Char*
     favor          : MergeFileFavor
-    flags          : LibC::UInt32
+    flags          : UInt32
     marker_size    : LibC::UShort
   end
 
@@ -74,11 +74,24 @@ lib LibGit2
     FASTFORWARD_ONLY = 2
   end
 
+  struct MergeOptions
+    version          : LibC::UInt
+    flags            : UInt32
+    rename_threshold : UInt32
+    target_limit     : UInt32
+    metric           : Void*
+    recursion_limit  : LibC::UInt
+    default_driver   : LibC::Char*
+    file_favor       : MergeFileFavor
+    file_flags       : UInt32
+  end
+
+  fun merge_options_init = git_merge_options_init(opts : MergeOptions*, version : LibC::UInt) : LibC::Int
   fun merge_file_input_init = git_merge_file_input_init(opts : MergeFileInput*, version : LibC::UInt) : LibC::Int
   fun merge_file_options_init = git_merge_file_options_init(opts : MergeFileOptions*, version : LibC::UInt) : LibC::Int
 
-  fun merge_analysis = git_merge_analysis(analysis_out : MergeAnalysis*, preference_out : MergePreference*, repo : Repository, their_heads : AnnotatedCommit**, their_heads_len : LibC::SizeT) : LibC::Int
-  fun merge_analysis_for_ref = git_merge_analysis_for_ref(analysis_out : MergeAnalysis*, preference_out : MergePreference*, repo : Repository, our_ref : Reference, their_heads : AnnotatedCommit**, their_heads_len : LibC::SizeT) : LibC::Int
+  fun merge_analysis = git_merge_analysis(analysis_out : MergeAnalysis*, preference_out : MergePreference*, repo : Repository, their_heads : AnnotatedCommit*, their_heads_len : LibC::SizeT) : LibC::Int
+  fun merge_analysis_for_ref = git_merge_analysis_for_ref(analysis_out : MergeAnalysis*, preference_out : MergePreference*, repo : Repository, our_ref : Reference, their_heads : AnnotatedCommit*, their_heads_len : LibC::SizeT) : LibC::Int
 
   fun merge_base = git_merge_base(out_oid : Oid*, repo : Repository, one : Oid*, two : Oid*) : LibC::Int
   fun merge_bases = git_merge_bases(out_array : Void*, repo : Repository, one : Oid*, two : Oid*) : LibC::Int

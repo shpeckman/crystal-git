@@ -2,73 +2,73 @@
 @[Link("git2")]
 lib LibGit2
   # git2/repository.h
-  enum RepositoryOpenFlag
-    NO_SEARCH = 1
-    CROSS_FS = 2
-    BARE = 4
-    NO_DOTGIT = 8
-    FROM_ENV = 16
+  enum RepositoryOpenFlag : UInt32
+    NO_SEARCH =  1
+    CROSS_FS  =  2
+    BARE      =  4
+    NO_DOTGIT =  8
+    FROM_ENV  = 16
   end
 
-  enum RepositoryInitFlag
-    BARE = 1
-    NO_REINIT = 2
-    MKDIR = 8
-    MKPATH = 16
+  enum RepositoryInitFlag : UInt32
+    BARE              =  1
+    NO_REINIT         =  2
+    MKDIR             =  8
+    MKPATH            = 16
     EXTERNAL_TEMPLATE = 32
-    RELATIVE_GITLINK = 64
+    RELATIVE_GITLINK  = 64
   end
 
   enum RepositoryInitMode
-    SHARED_UMASK = 0
+    SHARED_UMASK =    0
     SHARED_GROUP = 1533 # 0002775 octal
-    SHARED_ALL = 1535   # 0002777 octal
+    SHARED_ALL   = 1535 # 0002777 octal
   end
 
   struct RepositoryInitOptions
-    version : LibC::UInt
-    flags : LibC::UInt32
-    mode : LibC::UInt32
-    workdir_path : LibC::Char*
-    description : LibC::Char*
+    version       : LibC::UInt
+    flags         : UInt32
+    mode          : UInt32
+    workdir_path  : LibC::Char*
+    description   : LibC::Char*
     template_path : LibC::Char*
-    initial_head : LibC::Char*
-    origin_url : LibC::Char*
-    oid_type : OidType
-    refdb_type : RefdbType
+    initial_head  : LibC::Char*
+    origin_url    : LibC::Char*
+    oid_type      : OidType
+    refdb_type    : RefdbType
   end
 
   enum RepositoryItem
-    GITDIR = 0
-    WORKDIR = 1
-    COMMONDIR = 2
-    INDEX = 3
-    OBJECTS = 4
-    REFS = 5
-    PACKED_REFS = 6
-    REMOTES = 7
-    CONFIG = 8
-    INFO = 9
-    HOOKS = 10
-    LOGS = 11
-    MODULES = 12
-    WORKTREES = 13
+    GITDIR          =  0
+    WORKDIR         =  1
+    COMMONDIR       =  2
+    INDEX           =  3
+    OBJECTS         =  4
+    REFS            =  5
+    PACKED_REFS     =  6
+    REMOTES         =  7
+    CONFIG          =  8
+    INFO            =  9
+    HOOKS           = 10
+    LOGS            = 11
+    MODULES         = 12
+    WORKTREES       = 13
     WORKTREE_CONFIG = 14
-    _LAST = 15
+    LAST            = 15
   end
 
   enum RepositoryState
-    NONE = 0
-    MERGE = 1
-    REVERT = 2
-    REVERT_SEQUENCE = 3
-    CHERRYPICK = 4
-    CHERRYPICK_SEQUENCE = 5
-    BISECT = 6
-    REBASE = 7
-    REBASE_INTERACTIVE = 8
-    REBASE_MERGE = 9
-    APPLY_MAILBOX = 10
+    NONE                    =  0
+    MERGE                   =  1
+    REVERT                  =  2
+    REVERT_SEQUENCE         =  3
+    CHERRYPICK              =  4
+    CHERRYPICK_SEQUENCE     =  5
+    BISECT                  =  6
+    REBASE                  =  7
+    REBASE_INTERACTIVE      =  8
+    REBASE_MERGE            =  9
+    APPLY_MAILBOX           = 10
     APPLY_MAILBOX_OR_REBASE = 11
   end
 
@@ -122,4 +122,3 @@ lib LibGit2
   fun repository_oid_type = git_repository_oid_type(repo : Repository) : OidType
   fun repository_commit_parents = git_repository_commit_parents(commits : CommitArray*, repo : Repository) : LibC::Int
 end
-

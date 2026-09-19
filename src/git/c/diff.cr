@@ -5,7 +5,7 @@ lib LibGit2
   # DIFF (git2/diff.h)
   # ============================================================================
 
-  enum DiffOption
+  enum DiffOption : UInt32
     NORMAL                          =          0
     REVERSE                         =          1
     INCLUDE_IGNORED                 =          2
@@ -39,7 +39,7 @@ lib LibGit2
     SHOW_BINARY                     = 1073741824
   end
 
-  enum DiffFlag
+  enum DiffFlag : UInt32
     BINARY     =  1
     NOT_BINARY =  2
     VALID_ID   =  4
@@ -64,33 +64,36 @@ lib LibGit2
   struct DiffFile
     id        : Oid
     path      : LibC::Char*
-    size      : LibC::UInt64
-    flags     : LibC::UInt32
-    mode      : LibC::UInt16
-    id_abbrev : LibC::UInt16
+    size      : UInt64
+    flags     : UInt32
+    mode      : UInt16
+    id_abbrev : UInt16
   end
 
   struct DiffDelta
     status     : DeltaType
-    flags      : LibC::UInt32
-    similarity : LibC::UInt16
-    nfiles     : LibC::UInt16
+    flags      : UInt32
+    similarity : UInt16
+    nfiles     : UInt16
     old_file   : DiffFile
     new_file   : DiffFile
   end
 
+  alias DiffNotifyCb = (Diff, DiffDelta*, LibC::Char*, Void* -> LibC::Int)
+  alias DiffProgressCb = (Diff, LibC::Char*, LibC::Char*, Void* -> LibC::Int)
+
   struct DiffOptions
     version           : LibC::UInt
-    flags             : LibC::UInt32
+    flags             : UInt32
     ignore_submodules : SubmoduleIgnoreType
     pathspec          : Strarray
-    notify_cb         : Void*
-    progress_cb       : Void*
+    notify_cb         : DiffNotifyCb
+    progress_cb       : DiffProgressCb
     payload           : Void*
-    context_lines     : LibC::UInt32
-    interhunk_lines   : LibC::UInt32
+    context_lines     : UInt32
+    interhunk_lines   : UInt32
     oid_type          : OidType
-    id_abbrev         : LibC::UInt16
+    id_abbrev         : UInt16
     max_size          : Int64
     old_prefix        : LibC::Char*
     new_prefix        : LibC::Char*
@@ -115,7 +118,7 @@ lib LibGit2
     content        : LibC::Char*
   end
 
-  enum DiffFindOption
+  enum DiffFindOption : UInt32
     BY_CONFIG                       =     0
     RENAMES                         =     1
     RENAMES_FROM_REWRITES           =     2
@@ -136,11 +139,11 @@ lib LibGit2
 
   struct DiffFindOptions
     version                       : LibC::UInt
-    flags                         : LibC::UInt32
-    rename_threshold              : LibC::UInt16
-    rename_from_rewrite_threshold : LibC::UInt16
-    copy_threshold                : LibC::UInt16
-    break_rewrite_threshold       : LibC::UInt16
+    flags                         : UInt32
+    rename_threshold              : UInt16
+    rename_from_rewrite_threshold : UInt16
+    copy_threshold                : UInt16
+    break_rewrite_threshold       : UInt16
     rename_limit                  : LibC::SizeT
     metric                        : Void*
   end

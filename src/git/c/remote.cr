@@ -24,22 +24,34 @@ lib LibGit2
     ALL         = 3
   end
 
+  alias RemoteSidebandProgressCb = (LibC::Char*, LibC::Int, Void* -> LibC::Int)
+  alias RemoteCompletionCb = (LibC::Int, Void* -> LibC::Int)
+  alias TransferProgressCb = (Void*, Void* -> LibC::Int)
+  alias UpdateTipsCb = (LibC::Char*, Oid*, Oid*, Void* -> LibC::Int)
+  alias PackbuilderProgressCb = (LibC::Int, UInt32, UInt32, Void* -> LibC::Int)
+  alias PushTransferProgressCb = (UInt32, UInt32, LibC::SizeT, Void* -> LibC::Int)
+  alias PushUpdateReferenceCb = (LibC::Char*, LibC::Char*, Void* -> LibC::Int)
+  alias PushNegotiationCb = (Void*, LibC::SizeT, Void* -> LibC::Int)
+  alias TransportCb = (Transport*, Remote, Void* -> LibC::Int)
+  alias RemoteReadyCb = (Remote, LibC::Int, Void* -> LibC::Int)
+  alias ResolveUrlCb = (Buf*, LibC::Char*, LibC::Int, Void* -> LibC::Int)
+
   struct RemoteCallbacks
     version                : LibC::UInt
-    sideband_progress      : Void*
-    completion             : Void*
-    credentials            : Void*
-    certificate_check      : Void*
-    transfer_progress      : Void*
-    update_tips            : Void*
-    pack_progress          : Void*
-    push_transfer_progress : Void*
-    push_update_reference  : Void*
-    push_negotiation       : Void*
-    transport              : Void*
-    remote_ready           : Void*
+    sideband_progress      : RemoteSidebandProgressCb
+    completion             : RemoteCompletionCb
+    credentials            : CredentialAcquireCb
+    certificate_check      : TransportCertificateCheckCb
+    transfer_progress      : TransferProgressCb
+    update_tips            : UpdateTipsCb
+    pack_progress          : PackbuilderProgressCb
+    push_transfer_progress : PushTransferProgressCb
+    push_update_reference  : PushUpdateReferenceCb
+    push_negotiation       : PushNegotiationCb
+    transport              : TransportCb
+    remote_ready           : RemoteReadyCb
     payload                : Void*
-    resolve_url            : Void*
+    resolve_url            : ResolveUrlCb
     update_refs            : Void*
   end
 

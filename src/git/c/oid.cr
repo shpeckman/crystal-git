@@ -8,15 +8,15 @@ lib LibGit2
   end
 
   struct Oid
-    type : LibC::UInt8
-    id   : StaticArray(LibC::UInt8, 32)
+    id : StaticArray(UInt8, 20)
   end
 
   type OidShorten = Void*
 
-  fun oid_from_string = git_oid_from_string(out_oid : Oid*, str : LibC::Char*, type : OidType) : LibC::Int
-  fun oid_from_prefix = git_oid_from_prefix(out_oid : Oid*, str : LibC::Char*, len : LibC::SizeT, type : OidType) : LibC::Int
-  fun oid_from_raw = git_oid_from_raw(out_oid : Oid*, raw : LibC::UInt8*, type : OidType) : LibC::Int
+  fun oid_fromstr = git_oid_fromstr(out_oid : Oid*, str : LibC::Char*) : LibC::Int
+  fun oid_fromstrn = git_oid_fromstrn(out_oid : Oid*, str : LibC::Char*, length : LibC::SizeT) : LibC::Int
+  fun oid_fromstrp = git_oid_fromstrp(out_oid : Oid*, str : LibC::Char*) : LibC::Int
+  fun oid_fromraw = git_oid_fromraw(out_oid : Oid*, raw : UInt8*) : LibC::Int
   fun oid_fmt = git_oid_fmt(out_str : LibC::Char*, id : Oid*) : LibC::Int
   fun oid_nfmt = git_oid_nfmt(out_str : LibC::Char*, n : LibC::SizeT, id : Oid*) : LibC::Int
   fun oid_pathfmt = git_oid_pathfmt(out_str : LibC::Char*, id : Oid*) : LibC::Int

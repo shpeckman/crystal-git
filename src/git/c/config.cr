@@ -44,14 +44,14 @@ lib LibGit2
   fun config_free = git_config_free(cfg : Config)
 
   fun config_get_entry = git_config_get_entry(out_entry : ConfigEntry**, cfg : Config, name : LibC::Char*) : LibC::Int
-  fun config_get_int32 = git_config_get_int32(out_val : LibC::Int32*, cfg : Config, name : LibC::Char*) : LibC::Int
+  fun config_get_int32 = git_config_get_int32(out_val : Int32*, cfg : Config, name : LibC::Char*) : LibC::Int
   fun config_get_int64 = git_config_get_int64(out_val : Int64*, cfg : Config, name : LibC::Char*) : LibC::Int
   fun config_get_bool = git_config_get_bool(out_val : LibC::Int*, cfg : Config, name : LibC::Char*) : LibC::Int
   fun config_get_path = git_config_get_path(out_buf : Buf*, cfg : Config, name : LibC::Char*) : LibC::Int
   fun config_get_string = git_config_get_string(out_val : LibC::Char**, cfg : Config, name : LibC::Char*) : LibC::Int
   fun config_get_string_buf = git_config_get_string_buf(out_buf : Buf*, cfg : Config, name : LibC::Char*) : LibC::Int
 
-  fun config_set_int32 = git_config_set_int32(cfg : Config, name : LibC::Char*, value : LibC::Int32) : LibC::Int
+  fun config_set_int32 = git_config_set_int32(cfg : Config, name : LibC::Char*, value : Int32) : LibC::Int
   fun config_set_int64 = git_config_set_int64(cfg : Config, name : LibC::Char*, value : Int64) : LibC::Int
   fun config_set_bool = git_config_set_bool(cfg : Config, name : LibC::Char*, value : LibC::Int) : LibC::Int
   fun config_set_string = git_config_set_string(cfg : Config, name : LibC::Char*, value : LibC::Char*) : LibC::Int

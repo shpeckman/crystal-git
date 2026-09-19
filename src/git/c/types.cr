@@ -11,6 +11,8 @@ lib LibGit2
   type Config = Void*
   type ConfigBackend = Void*
   type Cert = Void*
+  type Credential = Void*
+  type Diff = Void*
   type Index = Void*
   type IndexConflictIterator = Void*
   type IndexIterator = Void*
@@ -24,6 +26,7 @@ lib LibGit2
   type OdbStream = Void*
   type OdbWritepack = Void*
   type Packbuilder = Void*
+  type Patch = Void*
   type Push = Void*
   type Rebase = Void*
   type Refdb = Void*
@@ -34,7 +37,6 @@ lib LibGit2
   type ReflogEntry = Void*
   type Refspec = Void*
   type Remote = Void*
-  type RemoteCallbacks = Void*
   type RemoteHead = Void*
   type Repository = Void*
   type Revwalk = Void*
@@ -48,6 +50,8 @@ lib LibGit2
   type TreeEntry = Void*
   type Worktree = Void*
   type Writestream = Void*
+
+  alias ObjectSizeT = UInt64
 
   # git2/types.h Common Structs
   struct Time
@@ -64,7 +68,7 @@ lib LibGit2
 
   # git2/commit.h (Required by Repository)
   struct CommitArray
-    commits : Commit**
+    commits : Commit*
     count   : LibC::SizeT
   end
 

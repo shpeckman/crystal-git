@@ -18,6 +18,6 @@ lib LibGit2
   end
 
   fun revparse_single = git_revparse_single(out_obj : Object*, repo : Repository, spec : LibC::Char*) : LibC::Int
-  fun revparse_ext = git_revparse_ext(object_out : Object**, reference_out : Reference**, repo : Repository, spec : LibC::Char*) : LibC::Int
+  fun revparse_ext = git_revparse_ext(object_out : Object*, reference_out : Reference*, repo : Repository, spec : LibC::Char*) : LibC::Int
   fun revparse = git_revparse(revspec : Revspec*, repo : Repository, spec : LibC::Char*) : LibC::Int
 end

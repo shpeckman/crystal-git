@@ -11,12 +11,14 @@ lib LibGit2
     SPECIFIED = 2
   end
 
+  alias TransportCertificateCheckCb = (Cert, LibC::Int, LibC::Char*, Void* -> LibC::Int)
+
   struct ProxyOptions
     version           : LibC::UInt
     type              : ProxyType
     url               : LibC::Char*
-    credentials       : Void*       # git_credential_acquire_cb
-    certificate_check : Void* # git_transport_certificate_check_cb
+    credentials       : CredentialAcquireCb
+    certificate_check : TransportCertificateCheckCb
     payload           : Void*
   end
 

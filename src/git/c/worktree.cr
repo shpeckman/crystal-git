@@ -21,7 +21,7 @@ lib LibGit2
 
   struct WorktreePruneOptions
     version : LibC::UInt
-    flags   : LibC::UInt32
+    flags   : UInt32
   end
 
   fun worktree_list = git_worktree_list(out_array : Strarray*, repo : Repository) : LibC::Int

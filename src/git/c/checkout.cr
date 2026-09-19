@@ -5,7 +5,7 @@ lib LibGit2
   # CHECKOUT (git2/checkout.h)
   # ============================================================================
 
-  enum CheckoutStrategy
+  enum CheckoutStrategy : UInt32
     SAFE                         =          0
     FORCE                        =          2
     RECREATE_MISSING             =          4
@@ -42,17 +42,21 @@ lib LibGit2
     ALL       = 65535
   end
 
+  alias CheckoutNotifyCb = (CheckoutNotify, LibC::Char*, DiffFile*, DiffFile*, DiffFile*, Void* -> LibC::Int)
+  alias CheckoutProgressCb = (LibC::Char*, LibC::SizeT, LibC::SizeT, Void* -> Void)
+  alias CheckoutPerfdataCb = (Void*, Void* -> Void)
+
   struct CheckoutOptions
     version           : LibC::UInt
-    checkout_strategy : LibC::UInt32
+    checkout_strategy : UInt32
     disable_filters   : LibC::Int
     dir_mode          : LibC::UInt
     file_mode         : LibC::UInt
     file_open_flags   : LibC::Int
     notify_flags      : LibC::UInt
-    notify_cb         : Void*
+    notify_cb         : CheckoutNotifyCb
     notify_payload    : Void*
-    progress_cb       : Void*
+    progress_cb       : CheckoutProgressCb
     progress_payload  : Void*
     paths             : Strarray
     baseline          : Tree
@@ -61,7 +65,7 @@ lib LibGit2
     ancestor_label    : LibC::Char*
     our_label         : LibC::Char*
     their_label       : LibC::Char*
-    perfdata_cb       : Void*
+    perfdata_cb       : CheckoutPerfdataCb
     perfdata_payload  : Void*
   end
 

@@ -5,13 +5,30 @@ lib LibGit2
   # STATUS (git2/status.h)
   # ============================================================================
 
+  enum StatusType : UInt32
+    CURRENT          =     0
+    INDEX_NEW        =     1
+    INDEX_MODIFIED   =     2
+    INDEX_DELETED    =     4
+    INDEX_RENAMED    =     8
+    INDEX_TYPECHANGE =    16
+    WT_NEW           =   128
+    WT_MODIFIED      =   256
+    WT_DELETED       =   512
+    WT_TYPECHANGE    =  1024
+    WT_RENAMED       =  2048
+    WT_UNREADABLE    =  4096
+    IGNORED          = 16384
+    CONFLICTED       = 32768
+  end
+
   enum StatusShow
     INDEX_AND_WORKDIR = 0
     INDEX_ONLY        = 1
     WORKDIR_ONLY      = 2
   end
 
-  enum StatusOpt
+  enum StatusOpt : UInt32
     INCLUDE_UNTRACKED               =     1
     INCLUDE_IGNORED                 =     2
     INCLUDE_UNMODIFIED              =     4
@@ -33,10 +50,10 @@ lib LibGit2
   struct StatusOptions
     version          : LibC::UInt
     show             : StatusShow
-    flags            : LibC::UInt32
+    flags            : UInt32
     pathspec         : Strarray
     baseline         : Tree
-    rename_threshold : LibC::UInt16
+    rename_threshold : UInt16
   end
 
   struct StatusEntry

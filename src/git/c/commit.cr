@@ -16,7 +16,7 @@ lib LibGit2
 
   struct CommitCreateOptions
     version            : LibC::UInt
-    allow_empty_commit : LibC::UInt32 # Represents the 1-bit bitfield padded to 32 bits
+    allow_empty_commit : UInt32 # Represents the 1-bit bitfield padded to 32 bits
     author             : Signature*
     committer          : Signature*
     message_encoding   : LibC::Char*
@@ -36,7 +36,7 @@ lib LibGit2
     payload           : Void*
   end
 
-  alias CommitCreateCb = (Oid*, Signature*, Signature*, LibC::Char*, LibC::Char*, Tree, LibC::SizeT, Commit**, Void* -> LibC::Int)
+  alias CommitCreateCb = (Oid*, Signature*, Signature*, LibC::Char*, LibC::Char*, Tree, LibC::SizeT, Commit*, Void* -> LibC::Int)
 
   # Annotated Commit Functions
   fun annotated_commit_from_ref = git_annotated_commit_from_ref(out_commit : AnnotatedCommit*, repo : Repository, ref : Reference) : LibC::Int
