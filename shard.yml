@@ -10,4 +10,4 @@ crystal: '>= 1.21.0'
 license: MIT
 
 scripts:
-  postinstall: sudo dnf install libgit2-devel -y
+  postinstall: make check-deps
