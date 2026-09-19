@@ -7,10 +7,12 @@ module Git
                 String |
                 Oid |
                 MergeOutcome |
+                AheadBehind |
                 Array(String) |
                 Array(StatusEntry) |
                 Array(StashEntry) |
-                Array(ConflictEntry)
+                Array(ConflictEntry) |
+                Array(Oid)
 
   alias Outcome = Ok(Value) | Err
 

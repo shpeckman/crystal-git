@@ -241,6 +241,30 @@ module Git
       Slot(Array(String)).new(queue(Commands::ListTags.new))
     end
 
+    def ahead_behind(local : String, upstream : String) : Slot(AheadBehind)
+      Slot(AheadBehind).new(queue(Commands::AheadBehind.new(local, upstream)))
+    end
+
+    def descendant_of(commit : String, ancestor : String) : Slot(Bool)
+      Slot(Bool).new(queue(Commands::DescendantOf.new(commit, ancestor)))
+    end
+
+    def reachable_from_any(commit : String, descendants : Array(String)) : Slot(Bool)
+      Slot(Bool).new(queue(Commands::ReachableFromAny.new(commit, descendants)))
+    end
+
+    def revwalk(target : String = "HEAD", sort : LibGit2::Sort = LibGit2::Sort::NONE, limit : Int32? = nil, first_parent : Bool = false, hide : Array(String) = [] of String) : Slot(Array(Oid))
+      Slot(Array(Oid)).new(queue(Commands::Revwalk.new([target], hide, sort, limit, first_parent)))
+    end
+
+    def revwalk(targets : Array(String), sort : LibGit2::Sort = LibGit2::Sort::NONE, limit : Int32? = nil, first_parent : Bool = false, hide : Array(String) = [] of String) : Slot(Array(Oid))
+      Slot(Array(Oid)).new(queue(Commands::Revwalk.new(targets, hide, sort, limit, first_parent)))
+    end
+
+    def write_commit_graph(split_strategy : LibGit2::CommitGraphSplitStrategy = LibGit2::CommitGraphSplitStrategy::SINGLE_FILE) : Slot(Bool)
+      Slot(Bool).new(queue(Commands::WriteCommitGraph.new(split_strategy)))
+    end
+
     def [](slot : Slot(T)) : T? forall T
       return nil unless slot.valid?
       @values[slot.index]?.as?(T)

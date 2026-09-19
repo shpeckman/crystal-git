@@ -1,10 +1,6 @@
 # src/git/libgit2.cr
 @[Link("git2")]
 lib LibGit2
-  # ============================================================================
-  # OPAQUE TYPES & COMMON STRUCTS (git2/types.h)
-  # ============================================================================
-
   type AnnotatedCommit = Void*
   type Blame = Void*
   type Blob = Void*
@@ -30,6 +26,7 @@ lib LibGit2
   type OdbWritepack = Void*
   type Packbuilder = Void*
   type Patch = Void*
+  type Pathspec = Void*
   type Push = Void*
   type Rebase = Void*
   type Refdb = Void*
@@ -97,11 +94,11 @@ lib LibGit2
 
   enum FilemodeType
     UNREADABLE      =     0
-    TREE            = 16384 # 0040000
-    BLOB            = 33188 # 0100644
-    BLOB_EXECUTABLE = 33261 # 0100755
-    LINK            = 40960 # 0120000
-    COMMIT          = 57344 # 0160000
+    TREE            = 16384
+    BLOB            = 33188
+    BLOB_EXECUTABLE = 33261
+    LINK            = 40960
+    COMMIT          = 57344
   end
 
   enum SubmoduleUpdateType
@@ -130,10 +127,6 @@ lib LibGit2
     FILES    = 1
     REFTABLE = 2
   end
-
-  # ============================================================================
-  # ERRORS (git2/errors.h)
-  # ============================================================================
 
   enum ErrorCode
     OK              =   0
@@ -223,10 +216,6 @@ lib LibGit2
   fun err_set_str = git_error_set_str(error_class : LibC::Int, string : LibC::Char*) : LibC::Int
   fun err_set_oom = git_error_set_oom
 
-  # ============================================================================
-  # BUFFER (git2/buffer.h)
-  # ============================================================================
-
   struct Buf
     ptr      : LibC::Char*
     reserved : LibC::SizeT
@@ -235,20 +224,12 @@ lib LibGit2
 
   fun buf_dispose = git_buf_dispose(buffer : Buf*)
 
-  # ============================================================================
-  # STRARRAY (git2/strarray.h)
-  # ============================================================================
-
   struct Strarray
     strings : LibC::Char**
     count   : LibC::SizeT
   end
 
   fun strarray_dispose = git_strarray_dispose(array : Strarray*)
-
-  # ============================================================================
-  # OID (git2/oid.h)
-  # ============================================================================
 
   enum OidType
     SHA1   = 1
@@ -282,10 +263,6 @@ lib LibGit2
   fun oid_shorten_add = git_oid_shorten_add(os : OidShorten, text_id : LibC::Char*) : LibC::Int
   fun oid_shorten_free = git_oid_shorten_free(os : OidShorten)
 
-  # ============================================================================
-  # CREDENTIALS (git2/credential.h)
-  # ============================================================================
-
   enum CredentialType
     USERPASS_PLAINTEXT =  1
     SSH_KEY            =  2
@@ -313,10 +290,6 @@ lib LibGit2
 
   fun credential_ssh_custom_new = git_credential_ssh_custom_new(out_cred : Credential*, username : LibC::Char*, publickey : LibC::Char*, publickey_len : LibC::SizeT, sign_callback : CredentialSignCb, payload : Void*) : LibC::Int
 
-  # ============================================================================
-  # REPOSITORY (git2/repository.h)
-  # ============================================================================
-
   enum RepositoryOpenFlag : UInt32
     NO_SEARCH =  1
     CROSS_FS  =  2
@@ -336,8 +309,8 @@ lib LibGit2
 
   enum RepositoryInitMode
     SHARED_UMASK =    0
-    SHARED_GROUP = 1533 # 0002775 octal
-    SHARED_ALL   = 1535 # 0002777 octal
+    SHARED_GROUP = 1533
+    SHARED_ALL   = 1535
   end
 
   struct RepositoryInitOptions
@@ -437,10 +410,6 @@ lib LibGit2
   fun repository_oid_type = git_repository_oid_type(repo : Repository) : OidType
   fun repository_commit_parents = git_repository_commit_parents(commits : CommitArray*, repo : Repository) : LibC::Int
 
-  # ============================================================================
-  # COMMITS (git2/commit.h & git2/annotated_commit.h)
-  # ============================================================================
-
   type Commitbuilder = Void*
 
   struct CommitHeader
@@ -452,7 +421,7 @@ lib LibGit2
 
   struct CommitCreateOptions
     version            : LibC::UInt
-    allow_empty_commit : UInt32 # Represents the 1-bit bitfield padded to 32 bits
+    allow_empty_commit : UInt32
     author             : Signature*
     committer          : Signature*
     message_encoding   : LibC::Char*
@@ -474,7 +443,6 @@ lib LibGit2
 
   alias CommitCreateCb = (Oid*, Signature*, Signature*, LibC::Char*, LibC::Char*, Tree, LibC::SizeT, Commit*, Void* -> LibC::Int)
 
-  # Annotated Commit Functions
   fun annotated_commit_from_ref = git_annotated_commit_from_ref(out_commit : AnnotatedCommit*, repo : Repository, ref : Reference) : LibC::Int
   fun annotated_commit_from_fetchhead = git_annotated_commit_from_fetchhead(out_commit : AnnotatedCommit*, repo : Repository, branch_name : LibC::Char*, remote_url : LibC::Char*, id : Oid*) : LibC::Int
   fun annotated_commit_lookup = git_annotated_commit_lookup(out_commit : AnnotatedCommit*, repo : Repository, id : Oid*) : LibC::Int
@@ -483,7 +451,6 @@ lib LibGit2
   fun annotated_commit_ref = git_annotated_commit_ref(commit : AnnotatedCommit) : LibC::Char*
   fun annotated_commit_free = git_annotated_commit_free(commit : AnnotatedCommit)
 
-  # Commit Functions
   fun commit_lookup = git_commit_lookup(commit : Commit*, repo : Repository, id : Oid*) : LibC::Int
   fun commit_lookup_prefix = git_commit_lookup_prefix(commit : Commit*, repo : Repository, id : Oid*, len : LibC::SizeT) : LibC::Int
   fun commit_free = git_commit_free(commit : Commit)
@@ -527,10 +494,6 @@ lib LibGit2
   fun commit_dup = git_commit_dup(out_commit : Commit*, source : Commit) : LibC::Int
 
   fun commitarray_dispose = git_commitarray_dispose(array : CommitArray*)
-
-  # ============================================================================
-  # TREES (git2/tree.h)
-  # ============================================================================
 
   enum TreewalkMode
     PRE  = 0
@@ -586,10 +549,6 @@ lib LibGit2
   fun tree_dup = git_tree_dup(out_tree : Tree*, source : Tree) : LibC::Int
   fun tree_create_updated = git_tree_create_updated(out_oid : Oid*, repo : Repository, baseline : Tree, nupdates : LibC::SizeT, updates : TreeUpdate*) : LibC::Int
 
-  # ============================================================================
-  # BLOBS (git2/blob.h)
-  # ============================================================================
-
   enum BlobFilterFlag : UInt32
     CHECK_FOR_BINARY       = 1
     NO_SYSTEM_ATTRIBUTES   = 2
@@ -625,10 +584,6 @@ lib LibGit2
   fun blob_data_is_binary = git_blob_data_is_binary(data : LibC::Char*, len : LibC::SizeT) : LibC::Int
   fun blob_dup = git_blob_dup(out_blob : Blob*, source : Blob) : LibC::Int
 
-  # ============================================================================
-  # BRANCHES (git2/branch.h)
-  # ============================================================================
-
   type BranchIterator = Void*
 
   fun branch_create = git_branch_create(out_ref : Reference*, repo : Repository, branch_name : LibC::Char*, target : Commit, force : LibC::Int) : LibC::Int
@@ -655,10 +610,6 @@ lib LibGit2
   fun branch_upstream_merge = git_branch_upstream_merge(buf : Buf*, repo : Repository, refname : LibC::Char*) : LibC::Int
 
   fun branch_name_is_valid = git_branch_name_is_valid(valid : LibC::Int*, name : LibC::Char*) : LibC::Int
-
-  # ============================================================================
-  # REFERENCES (git2/refs.h)
-  # ============================================================================
 
   enum ReferenceFormatType
     NORMAL            = 0
@@ -725,10 +676,6 @@ lib LibGit2
   fun reference_name_is_valid = git_reference_name_is_valid(valid : LibC::Int*, refname : LibC::Char*) : LibC::Int
   fun reference_shorthand = git_reference_shorthand(ref : Reference) : LibC::Char*
 
-  # ============================================================================
-  # INDEX (git2/index.h)
-  # ============================================================================
-
   struct IndexTime
     seconds     : Int32
     nanoseconds : UInt32
@@ -750,8 +697,8 @@ lib LibGit2
   end
 
   enum IndexEntryFlag
-    EXTENDED = 16384 # 0x4000
-    VALID    = 32768 # 0x8000
+    EXTENDED = 16384
+    VALID    = 32768
   end
 
   enum IndexEntryExtendedFlag
@@ -834,10 +781,6 @@ lib LibGit2
   fun index_conflict_iterator_new = git_index_conflict_iterator_new(iterator_out : IndexConflictIterator*, index : Index) : LibC::Int
   fun index_conflict_next = git_index_conflict_next(ancestor_out : IndexEntry**, our_out : IndexEntry**, their_out : IndexEntry**, iterator : IndexConflictIterator) : LibC::Int
   fun index_conflict_iterator_free = git_index_conflict_iterator_free(iterator : IndexConflictIterator)
-
-  # ============================================================================
-  # DIFF (git2/diff.h)
-  # ============================================================================
 
   enum DiffOption : UInt32
     NORMAL                          =          0
@@ -1016,10 +959,6 @@ lib LibGit2
   fun diff_print = git_diff_print(diff : Diff, format : DiffFormat, print_cb : DiffLineCb, payload : Void*) : LibC::Int
   fun diff_to_buf = git_diff_to_buf(out_buf : Buf*, diff : Diff, format : DiffFormat) : LibC::Int
 
-  # ============================================================================
-  # STATUS (git2/status.h)
-  # ============================================================================
-
   enum StatusType : UInt32
     CURRENT          =     0
     INDEX_NEW        =     1
@@ -1088,10 +1027,6 @@ lib LibGit2
   fun status_byindex = git_status_byindex(statuslist : StatusList, idx : LibC::SizeT) : StatusEntry*
   fun status_list_free = git_status_list_free(statuslist : StatusList)
   fun status_should_ignore = git_status_should_ignore(ignored : LibC::Int*, repo : Repository, path : LibC::Char*) : LibC::Int
-
-  # ============================================================================
-  # CHECKOUT (git2/checkout.h)
-  # ============================================================================
 
   enum CheckoutStrategy : UInt32
     SAFE                         =          0
@@ -1162,10 +1097,6 @@ lib LibGit2
   fun checkout_index = git_checkout_index(repo : Repository, index : Index, opts : CheckoutOptions*) : LibC::Int
   fun checkout_tree = git_checkout_tree(repo : Repository, treeish : Object, opts : CheckoutOptions*) : LibC::Int
 
-  # ============================================================================
-  # PROXY (git2/proxy.h)
-  # ============================================================================
-
   enum ProxyType
     NONE      = 0
     AUTO      = 1
@@ -1184,10 +1115,6 @@ lib LibGit2
   end
 
   fun proxy_options_init = git_proxy_options_init(opts : ProxyOptions*, version : LibC::UInt) : LibC::Int
-
-  # ============================================================================
-  # REMOTE (git2/remote.h)
-  # ============================================================================
 
   enum RemoteRedirect
     NONE    = 1
@@ -1274,10 +1201,6 @@ lib LibGit2
   fun push_options_init = git_push_options_init(opts : PushOptions*, version : LibC::UInt) : LibC::Int
   fun remote_connect_options_init = git_remote_connect_options_init(opts : RemoteConnectOptions*, version : LibC::UInt) : LibC::Int
 
-  # ============================================================================
-  # CLONE (git2/clone.h)
-  # ============================================================================
-
   enum CloneLocal
     AUTO           = 0
     LOCAL          = 1
@@ -1300,10 +1223,6 @@ lib LibGit2
 
   fun clone_options_init = git_clone_options_init(opts : CloneOptions*, version : LibC::UInt) : LibC::Int
   fun clone = git_clone(out_repo : Repository*, url : LibC::Char*, local_path : LibC::Char*, options : CloneOptions*) : LibC::Int
-
-  # ============================================================================
-  # CONFIG (git2/config.h)
-  # ============================================================================
 
   enum ConfigLevel
     SYSTEM        =  2
@@ -1365,10 +1284,6 @@ lib LibGit2
   fun config_iterator_glob_new = git_config_iterator_glob_new(out_iter : ConfigIterator*, cfg : Config, regexp : LibC::Char*) : LibC::Int
   fun config_next = git_config_next(entry : ConfigEntry**, iter : ConfigIterator) : LibC::Int
   fun config_iterator_free = git_config_iterator_free(iter : ConfigIterator)
-
-  # ============================================================================
-  # SUBMODULES (git2/submodule.h)
-  # ============================================================================
 
   enum SubmoduleStatus
     IN_HEAD           =    1
@@ -1441,10 +1356,6 @@ lib LibGit2
   fun submodule_status = git_submodule_status(out_status : LibC::UInt*, repo : Repository, name : LibC::Char*, ignore : SubmoduleIgnoreType) : LibC::Int
   fun submodule_location = git_submodule_location(out_location_status : LibC::UInt*, submodule : Submodule) : LibC::Int
 
-  # ============================================================================
-  # SIGNATURES (git2/signature.h)
-  # ============================================================================
-
   fun signature_new = git_signature_new(out_sig : Signature**, name : LibC::Char*, email : LibC::Char*, time : Int64, offset : LibC::Int) : LibC::Int
   fun signature_now = git_signature_now(out_sig : Signature**, name : LibC::Char*, email : LibC::Char*) : LibC::Int
   fun signature_default_from_env = git_signature_default_from_env(author_out : Signature**, committer_out : Signature**, repo : Repository) : LibC::Int
@@ -1452,10 +1363,6 @@ lib LibGit2
   fun signature_from_buffer = git_signature_from_buffer(out_sig : Signature**, buf : LibC::Char*) : LibC::Int
   fun signature_dup = git_signature_dup(dest : Signature**, sig : Signature*) : LibC::Int
   fun signature_free = git_signature_free(sig : Signature*)
-
-  # ============================================================================
-  # MERGE (git2/merge.h)
-  # ============================================================================
 
   enum MergeFlag : UInt32
     FIND_RENAMES     =  1
@@ -1558,10 +1465,6 @@ lib LibGit2
   fun merge_trees = git_merge_trees(out_idx : Index*, repo : Repository, ancestor_tree : Tree, our_tree : Tree, their_tree : Tree, opts : MergeOptions*) : LibC::Int
   fun merge_commits = git_merge_commits(out_idx : Index*, repo : Repository, our_commit : Commit, their_commit : Commit, opts : MergeOptions*) : LibC::Int
 
-  # ============================================================================
-  # REBASE (git2/rebase.h)
-  # ============================================================================
-
   enum RebaseOperationType
     PICK   = 0
     REWORD = 1
@@ -1608,10 +1511,6 @@ lib LibGit2
   fun rebase_abort = git_rebase_abort(rebase : Rebase) : LibC::Int
   fun rebase_finish = git_rebase_finish(rebase : Rebase, signature : Signature*) : LibC::Int
   fun rebase_free = git_rebase_free(rebase : Rebase)
-
-  # ============================================================================
-  # STASH (git2/stash.h)
-  # ============================================================================
 
   enum StashFlags : UInt32
     DEFAULT           = 0
@@ -1667,10 +1566,6 @@ lib LibGit2
   fun stash_drop = git_stash_drop(repo : Repository, index : LibC::SizeT) : LibC::Int
   fun stash_pop = git_stash_pop(repo : Repository, index : LibC::SizeT, options : StashApplyOptions*) : LibC::Int
 
-  # ============================================================================
-  # RESET (git2/reset.h)
-  # ============================================================================
-
   enum ResetType
     SOFT  = 1
     MIXED = 2
@@ -1679,10 +1574,6 @@ lib LibGit2
 
   fun reset_default = git_reset_default(repo : Repository, target : Object, pathspecs : Strarray*) : LibC::Int
   fun reset_from_annotated = git_reset_from_annotated(repo : Repository, target : AnnotatedCommit, reset_type : ResetType, checkout_opts : CheckoutOptions*) : LibC::Int
-
-  # ============================================================================
-  # ODB & ODB BACKEND (git2/odb.h, git2/odb_backend.h)
-  # ============================================================================
 
   enum OdbLookupFlags
     NO_REFRESH = 1
@@ -1741,10 +1632,6 @@ lib LibGit2
   fun odb_num_backends = git_odb_num_backends(odb : Odb) : LibC::SizeT
   fun odb_get_backend = git_odb_get_backend(out_backend : OdbBackend*, odb : Odb, pos : LibC::SizeT) : LibC::Int
 
-  # ============================================================================
-  # REFLOG (git2/reflog.h)
-  # ============================================================================
-
   fun reflog_read = git_reflog_read(out_reflog : Reflog*, repo : Repository, name : LibC::Char*) : LibC::Int
   fun reflog_write = git_reflog_write(reflog : Reflog) : LibC::Int
   fun reflog_append = git_reflog_append(reflog : Reflog, id : Oid*, committer : Signature*, msg : LibC::Char*) : LibC::Int
@@ -1761,10 +1648,6 @@ lib LibGit2
   fun reflog_entry_message = git_reflog_entry_message(entry : ReflogEntry*) : LibC::Char*
 
   fun reflog_free = git_reflog_free(reflog : Reflog)
-
-  # ============================================================================
-  # BLAME (git2/blame.h)
-  # ============================================================================
 
   enum BlameFlag : UInt32
     NORMAL                          =  0
@@ -1820,10 +1703,6 @@ lib LibGit2
   fun blame_buffer = git_blame_buffer(out_blame : Blame*, base : Blame, buffer : LibC::Char*, buffer_len : LibC::SizeT) : LibC::Int
   fun blame_free = git_blame_free(blame : Blame)
 
-  # ============================================================================
-  # WORKTREE (git2/worktree.h)
-  # ============================================================================
-
   struct WorktreeAddOptions
     version           : LibC::UInt
     lock              : LibC::Int
@@ -1863,10 +1742,6 @@ lib LibGit2
   fun worktree_is_prunable = git_worktree_is_prunable(wt : Worktree, opts : WorktreePruneOptions*) : LibC::Int
   fun worktree_prune = git_worktree_prune(wt : Worktree, opts : WorktreePruneOptions*) : LibC::Int
 
-  # ============================================================================
-  # PATCH (git2/patch.h)
-  # ============================================================================
-
   fun patch_owner = git_patch_owner(patch : Patch) : Repository
   fun patch_from_diff = git_patch_from_diff(out_patch : Patch*, diff : Diff, idx : LibC::SizeT) : LibC::Int
   fun patch_from_blobs = git_patch_from_blobs(out_patch : Patch*, old_blob : Blob, old_as_path : LibC::Char*, new_blob : Blob, new_as_path : LibC::Char*, opts : DiffOptions*) : LibC::Int
@@ -1884,10 +1759,6 @@ lib LibGit2
   fun patch_print = git_patch_print(patch : Patch, print_cb : DiffLineCb, payload : Void*) : LibC::Int
   fun patch_to_buf = git_patch_to_buf(out_buf : Buf*, patch : Patch) : LibC::Int
 
-  # ============================================================================
-  # REVPARSE (git2/revparse.h)
-  # ============================================================================
-
   enum RevspecType
     SINGLE     = 1
     RANGE      = 2
@@ -1904,9 +1775,67 @@ lib LibGit2
   fun revparse_ext = git_revparse_ext(object_out : Object*, reference_out : Reference*, repo : Repository, spec : LibC::Char*) : LibC::Int
   fun revparse = git_revparse(revspec : Revspec*, repo : Repository, spec : LibC::Char*) : LibC::Int
 
-  # ============================================================================
-  # GLOBAL (git2/global.h)
-  # ============================================================================
+  fun graph_ahead_behind = git_graph_ahead_behind(ahead : LibC::SizeT*, behind : LibC::SizeT*, repo : Repository, local : Oid*, upstream : Oid*) : LibC::Int
+  fun graph_descendant_of = git_graph_descendant_of(repo : Repository, commit : Oid*, ancestor : Oid*) : LibC::Int
+  fun graph_reachable_from_any = git_graph_reachable_from_any(repo : Repository, commit : Oid*, descendant_array : Oid*, length : LibC::SizeT) : LibC::Int
+
+  struct CommitGraphOpenOptions
+    version  : LibC::UInt
+    oid_type : OidType
+  end
+
+  enum CommitGraphSplitStrategy
+    SINGLE_FILE = 0
+  end
+
+  struct CommitGraphWriterOptions
+    version        : LibC::UInt
+    oid_type       : OidType
+    split_strategy : CommitGraphSplitStrategy
+    size_multiple  : LibC::Float
+    max_commits    : LibC::SizeT
+  end
+
+  fun commit_graph_open_options_init = git_commit_graph_open_options_init(opts : CommitGraphOpenOptions*, version : LibC::UInt) : LibC::Int
+  fun commit_graph_open = git_commit_graph_open(cgraph_out : CommitGraph*, objects_dir : LibC::Char*, options : CommitGraphOpenOptions*) : LibC::Int
+  fun commit_graph_free = git_commit_graph_free(cgraph : CommitGraph)
+
+  fun commit_graph_writer_options_init = git_commit_graph_writer_options_init(opts : CommitGraphWriterOptions*, version : LibC::UInt) : LibC::Int
+  fun commit_graph_writer_new = git_commit_graph_writer_new(out : CommitGraphWriter*, objects_info_dir : LibC::Char*, options : CommitGraphWriterOptions*) : LibC::Int
+  fun commit_graph_writer_free = git_commit_graph_writer_free(w : CommitGraphWriter)
+  fun commit_graph_writer_add_index_file = git_commit_graph_writer_add_index_file(w : CommitGraphWriter, repo : Repository, idx_path : LibC::Char*) : LibC::Int
+  fun commit_graph_writer_add_revwalk = git_commit_graph_writer_add_revwalk(w : CommitGraphWriter, walk : Revwalk) : LibC::Int
+  fun commit_graph_writer_commit = git_commit_graph_writer_commit(w : CommitGraphWriter) : LibC::Int
+  fun commit_graph_writer_dump = git_commit_graph_writer_dump(buffer : Buf*, w : CommitGraphWriter) : LibC::Int
+
+  @[Flags]
+  enum Sort : UInt32
+    NONE        = 0
+    TOPOLOGICAL = 1
+    TIME        = 2
+    REVERSE     = 4
+  end
+
+  alias RevwalkHideCb = (Oid*, Void* -> LibC::Int)
+
+  fun revwalk_new = git_revwalk_new(out : Revwalk*, repo : Repository) : LibC::Int
+  fun revwalk_reset = git_revwalk_reset(walker : Revwalk) : LibC::Int
+  fun revwalk_push = git_revwalk_push(walk : Revwalk, id : Oid*) : LibC::Int
+  fun revwalk_push_glob = git_revwalk_push_glob(walk : Revwalk, glob : LibC::Char*) : LibC::Int
+  fun revwalk_push_head = git_revwalk_push_head(walk : Revwalk) : LibC::Int
+  fun revwalk_hide = git_revwalk_hide(walk : Revwalk, commit_id : Oid*) : LibC::Int
+  fun revwalk_hide_glob = git_revwalk_hide_glob(walk : Revwalk, glob : LibC::Char*) : LibC::Int
+  fun revwalk_hide_head = git_revwalk_hide_head(walk : Revwalk) : LibC::Int
+  fun revwalk_push_ref = git_revwalk_push_ref(walk : Revwalk, refname : LibC::Char*) : LibC::Int
+  fun revwalk_hide_ref = git_revwalk_hide_ref(walk : Revwalk, refname : LibC::Char*) : LibC::Int
+  fun revwalk_next = git_revwalk_next(out : Oid*, walk : Revwalk) : LibC::Int
+  fun revwalk_sorting = git_revwalk_sorting(walk : Revwalk, sort_mode : LibC::UInt) : LibC::Int
+  fun revwalk_pathspec = git_revwalk_pathspec(walk : Revwalk, pathspec : Pathspec) : LibC::Int
+  fun revwalk_push_range = git_revwalk_push_range(walk : Revwalk, range : LibC::Char*) : LibC::Int
+  fun revwalk_simplify_first_parent = git_revwalk_simplify_first_parent(walk : Revwalk) : LibC::Int
+  fun revwalk_free = git_revwalk_free(walk : Revwalk)
+  fun revwalk_repository = git_revwalk_repository(walk : Revwalk) : Repository
+  fun revwalk_add_hide_cb = git_revwalk_add_hide_cb(walk : Revwalk, hide_cb : RevwalkHideCb, payload : Void*) : LibC::Int
 
   fun libgit2_init = git_libgit2_init : LibC::Int
   fun libgit2_shutdown = git_libgit2_shutdown : LibC::Int

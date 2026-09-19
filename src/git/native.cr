@@ -66,6 +66,16 @@ module Git
       Ok(String).new(path)
     end
 
+    def self.oid(repo : Repo, revspec : String) : Ok(Oid) | Err
+      object = uninitialized LibGit2::Object
+      if err = Git.check(LibGit2.revparse_single(pointerof(object), repo.handle, revspec))
+        return err
+      end
+      id = Oid.from(LibGit2.object_id(object))
+      free_object(object)
+      Ok(Oid).new(id)
+    end
+
     def self.commit(repo : Repo, revspec : String) : Ok(LibGit2::Commit) | Err
       object = uninitialized LibGit2::Object
       if err = Git.check(LibGit2.revparse_single(pointerof(object), repo.handle, revspec))
