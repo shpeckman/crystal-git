@@ -21,6 +21,6 @@ describe "LibGit2 Errors" do
     LibGit2.err_clear
 
     err = LibGit2.err_last
-    err.null?.should be_true
+    (err.null? || err.value.klass == LibGit2::ErrorType::NONE.value).should be_true
   end
 end

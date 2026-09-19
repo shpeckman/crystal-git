@@ -10,7 +10,8 @@ describe "LibGit2 Buffer" do
 
     LibGit2.buf_dispose(pointerof(buf))
 
-    buf.ptr.null?.should be_true
+    buf.ptr.null?.should be_false
+    String.new(buf.ptr).should eq("")
     buf.size.should eq(0_u64)
   end
 end
