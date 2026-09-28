@@ -190,6 +190,38 @@ module Git::Commands
     end
   end
 
+  class MergeBase < Command
+    describe(:merge_base, StateSet::All, nil,
+      Predicate::None, Predicate::None,
+      Predicate::None, Predicate::None,
+      Reversibility::ReadOnly)
+
+    def initialize(@one : String, @two : String)
+    end
+
+    def execute(repo : Repo, undo : Array(Undo)) : Ok(Value) | Err
+      one_oid = Native.oid(repo, @one)
+      return one_oid if one_oid.is_a?(Err)
+
+      two_oid = Native.oid(repo, @two)
+      return two_oid if two_oid.is_a?(Err)
+
+      raw_one = one_oid.value.raw
+      raw_two = two_oid.value.raw
+
+      base = uninitialized LibGit2::Oid
+      result = LibGit2.merge_base(pointerof(base), repo.handle, pointerof(raw_one), pointerof(raw_two))
+      if result == LibGit2::ErrorCode::ENOTFOUND.value
+        return Err.invalid("no merge base between #{@one} and #{@two}")
+      end
+      if err = Git.check(result)
+        return err
+      end
+
+      Ok(Value).new(Oid.new(base))
+    end
+  end
+
   class WriteCommitGraph < Command
     describe(:write_commit_graph, StateSet::All, nil,
       Predicate::None, Predicate::None,

@@ -1,4 +1,6 @@
 # src/git/undo.cr
+require "file_utils"
+
 module Git
   abstract class Undo
     abstract def apply(repo : Repo) : Err?
@@ -169,6 +171,160 @@ module Git
       result = Git.check(LibGit2.branch_set_upstream(ref, Native.pointer(@upstream)))
       LibGit2.reference_free(ref)
       result
+    end
+  end
+
+  class Undo::ConfigEntry < Undo
+    def self.capture(repo : Repo, name : String, config_path : String? = nil) : Ok(Undo) | Err
+      read = repo.with_config(config_path) do |_, config|
+        value = uninitialized LibC::Char*
+        result = LibGit2.config_get_string(pointerof(value), config, name)
+        unless result == 0 || result == LibGit2::ErrorCode::ENOTFOUND.value
+          return Err.capture(result)
+        end
+        result == 0 ? String.new(value) : nil
+      end
+      return read if read.is_a?(Err)
+      Ok(Undo).new(new(name, read.value, config_path))
+    end
+
+    def initialize(@name : String, @prior : String?, @config_path : String? = nil)
+    end
+
+    def apply(repo : Repo) : Err?
+      applied = repo.with_config(@config_path) do |config, _|
+        if prior = @prior
+          Git.check(LibGit2.config_set_string(config, @name, prior))
+        else
+          result = LibGit2.config_delete_entry(config, @name)
+          result == LibGit2::ErrorCode::ENOTFOUND.value ? nil : Git.check(result)
+        end
+      end
+      return applied if applied.is_a?(Err)
+      applied.value
+    end
+  end
+
+  class Undo::RemoteAdd < Undo
+    def initialize(@name : String)
+    end
+
+    def apply(repo : Repo) : Err?
+      result = LibGit2.remote_delete(repo.handle, @name)
+      return nil if result == LibGit2::ErrorCode::ENOTFOUND.value
+      Git.check(result)
+    end
+  end
+
+  class Undo::RemoteRemove < Undo
+    def initialize(@name : String, @url : String?)
+    end
+
+    def apply(repo : Repo) : Err?
+      url = @url
+      return nil unless url
+      remote = uninitialized LibGit2::Remote
+      if err = Git.check(LibGit2.remote_create(pointerof(remote), repo.handle, @name, url))
+        return err
+      end
+      LibGit2.remote_free(remote)
+      nil
+    end
+  end
+
+  class Undo::WorktreeAdd < Undo
+    def initialize(@name : String, @path : String)
+    end
+
+    def apply(repo : Repo) : Err?
+      FileUtils.rm_rf(@path)
+
+      worktree = uninitialized LibGit2::Worktree
+      return nil unless LibGit2.worktree_lookup(pointerof(worktree), repo.handle, @name) == 0
+
+      opts = uninitialized LibGit2::WorktreePruneOptions
+      LibGit2.worktree_prune_options_init(pointerof(opts), 1_u32)
+      opts.flags = LibGit2::WorktreePruneType::VALID.value | LibGit2::WorktreePruneType::LOCKED.value
+
+      result = Git.check(LibGit2.worktree_prune(worktree, pointerof(opts)))
+      LibGit2.worktree_free(worktree)
+      result
+    end
+  end
+
+  class Undo::SubmoduleAdd < Undo
+    def initialize(@name : String, @path : String, @gitmodules : Bytes?)
+    end
+
+    def apply(repo : Repo) : Err?
+      cleaned = repo.with_config do |config, _|
+        {"url", "branch", "active"}.each do |key|
+          LibGit2.config_delete_entry(config, "submodule.#{@name}.#{key}")
+        end
+        nil
+      end
+      return cleaned if cleaned.is_a?(Err)
+
+      workdir = Native.workdir(repo)
+      return workdir if workdir.is_a?(Err)
+
+      gitmodules = File.join(workdir.value, ".gitmodules")
+      if prior = @gitmodules
+        Native.write_bytes(gitmodules, prior)
+      else
+        File.delete(gitmodules) if File.exists?(gitmodules)
+      end
+
+      FileUtils.rm_rf(File.join(workdir.value, @path))
+
+      gitdir = Native.gitdir(repo)
+      return gitdir if gitdir.is_a?(Err)
+      FileUtils.rm_rf(File.join(gitdir.value, "modules", @name))
+      nil
+    end
+  end
+
+  class Undo::SubmoduleUpdate < Undo
+    def initialize(@name : String, @path : String, @was_initialized : Bool, @prior_head : Oid?)
+    end
+
+    def apply(repo : Repo) : Err?
+      workdir = Native.workdir(repo)
+      return workdir if workdir.is_a?(Err)
+      location = File.join(workdir.value, @path)
+
+      unless @was_initialized
+        cleaned = repo.with_config do |config, _|
+          LibGit2.config_delete_entry(config, "submodule.#{@name}.url")
+          nil
+        end
+        return cleaned if cleaned.is_a?(Err)
+
+        gitdir = Native.gitdir(repo)
+        return gitdir if gitdir.is_a?(Err)
+        FileUtils.rm_rf(File.join(gitdir.value, "modules", @name))
+        FileUtils.rm_rf(location)
+        return nil
+      end
+
+      prior = @prior_head
+      return nil unless prior
+
+      handle = uninitialized LibGit2::Repository
+      if err = Git.check(LibGit2.repository_open_ext(pointerof(handle), location, 0_u32, nil))
+        return err
+      end
+
+      raw = prior.raw
+      annotated = uninitialized LibGit2::AnnotatedCommit
+      failure = Git.check(LibGit2.annotated_commit_lookup(pointerof(annotated), handle, pointerof(raw)))
+      unless failure
+        opts    = Native.checkout_options(LibGit2::CheckoutStrategy::FORCE.value)
+        failure = Git.check(LibGit2.reset_from_annotated(handle, annotated, LibGit2::ResetType::HARD, pointerof(opts)))
+        LibGit2.annotated_commit_free(annotated)
+      end
+      LibGit2.repository_free(handle)
+      failure
     end
   end
 end

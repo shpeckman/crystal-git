@@ -89,6 +89,40 @@ module Git::Native
     Ok(LibGit2::Commit).new(peeled.as(LibGit2::Commit))
   end
 
+  def self.tree(repo : Repo, revspec : String) : Ok(LibGit2::Tree) | Err
+    resolved = commit(repo, revspec)
+    return resolved if resolved.is_a?(Err)
+
+    tree = uninitialized LibGit2::Tree
+    result = Git.check(LibGit2.commit_tree(pointerof(tree), resolved.value))
+    LibGit2.commit_free(resolved.value)
+    return result if result
+    Ok(LibGit2::Tree).new(tree)
+  end
+
+  def self.null_tree : LibGit2::Tree
+    Pointer(Void).null.as(LibGit2::Tree)
+  end
+
+  def self.blob(repo : Repo, spec : String) : Ok(Bytes) | Err
+    object = uninitialized LibGit2::Object
+    if err = Git.check(LibGit2.revparse_single(pointerof(object), repo.handle, spec))
+      return err
+    end
+
+    unless LibGit2.object_type(object) == LibGit2::ObjectType::BLOB
+      free_object(object)
+      return Err.invalid("#{spec} does not resolve to a blob")
+    end
+
+    blob  = object.as(LibGit2::Blob)
+    size  = LibGit2.blob_rawsize(blob)
+    bytes = Bytes.new(size.to_i32)
+    bytes.copy_from(LibGit2.blob_rawcontent(blob).as(UInt8*), size.to_i32) if size > 0
+    LibGit2.blob_free(blob)
+    Ok(Bytes).new(bytes)
+  end
+
   def self.annotated(repo : Repo, revspec : String) : Ok(LibGit2::AnnotatedCommit) | Err
     annotated = uninitialized LibGit2::AnnotatedCommit
     if err = Git.check(LibGit2.annotated_commit_from_revspec(pointerof(annotated), repo.handle, revspec))

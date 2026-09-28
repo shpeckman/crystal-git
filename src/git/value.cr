@@ -5,14 +5,26 @@ module Git
                 Int32 |
                 UInt64 |
                 String |
+                Bytes |
                 Oid |
                 MergeOutcome |
                 AheadBehind |
+                ObjectData |
+                ConfigItem |
+                SubmoduleEntry |
+                LinkedWorktree |
                 Array(String) |
                 Array(StatusEntry) |
                 Array(StashEntry) |
                 Array(ConflictEntry) |
-                Array(Oid)
+                Array(Oid) |
+                Array(DiffEntry) |
+                Array(ConfigItem) |
+                Array(BlameEntry) |
+                Array(ReflogEntry) |
+                Array(TreeEntryInfo) |
+                Array(SubmoduleEntry) |
+                Array(LinkedWorktree)
 
   alias Outcome = Ok(Value) | Err
 

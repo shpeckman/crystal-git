@@ -260,7 +260,7 @@ lib LibGit2
   fun oid_is_zero = git_oid_is_zero(id : Oid*) : LibC::Int
 
   fun oid_shorten_new = git_oid_shorten_new(min_length : LibC::SizeT) : OidShorten
-  fun oid_shorten_add = git_oid_shorten_add(os : OidShorten, text_id : LibC::Char*) : LibC::Int
+  fun oid_shorten_add = git_oid_shorten_add(os         : OidShorten, text_id : LibC::Char*) : LibC::Int
   fun oid_shorten_free = git_oid_shorten_free(os : OidShorten)
 
   enum CredentialType
@@ -369,7 +369,7 @@ lib LibGit2
   fun repository_discover = git_repository_discover(out_buf : Buf*, start_path : LibC::Char*, across_fs : LibC::Int, ceiling_dirs : LibC::Char*) : LibC::Int
   fun repository_open_ext = git_repository_open_ext(out_repo : Repository*, path : LibC::Char*, flags : LibC::UInt, ceiling_dirs : LibC::Char*) : LibC::Int
   fun repository_open_bare = git_repository_open_bare(out_repo : Repository*, bare_path : LibC::Char*) : LibC::Int
-  fun repository_free = git_repository_free(repo : Repository)
+  fun repository_free = git_repository_free(repo     : Repository)
   fun repository_init = git_repository_init(out_repo : Repository*, path : LibC::Char*, is_bare : LibC::UInt) : LibC::Int
   fun repository_init_options_init = git_repository_init_options_init(opts : RepositoryInitOptions*, version : LibC::UInt) : LibC::Int
   fun repository_init_ext = git_repository_init_ext(out_repo : Repository*, repo_path : LibC::Char*, opts : RepositoryInitOptions*) : LibC::Int
@@ -644,7 +644,7 @@ lib LibGit2
   fun reference_set_target = git_reference_set_target(out_ref : Reference*, ref : Reference, id : Oid*, log_message : LibC::Char*) : LibC::Int
   fun reference_rename = git_reference_rename(new_ref : Reference*, ref : Reference, new_name : LibC::Char*, force : LibC::Int, log_message : LibC::Char*) : LibC::Int
 
-  fun reference_delete = git_reference_delete(ref : Reference) : LibC::Int
+  fun reference_delete = git_reference_delete(ref  : Reference) : LibC::Int
   fun reference_remove = git_reference_remove(repo : Repository, name : LibC::Char*) : LibC::Int
   fun reference_list = git_reference_list(array : Strarray*, repo : Repository) : LibC::Int
 
@@ -1350,7 +1350,7 @@ lib LibGit2
   fun submodule_init = git_submodule_init(submodule : Submodule, overwrite : LibC::Int) : LibC::Int
   fun submodule_repo_init = git_submodule_repo_init(out_repo : Repository*, sm : Submodule, use_gitlink : LibC::Int) : LibC::Int
   fun submodule_sync = git_submodule_sync(submodule : Submodule) : LibC::Int
-  fun submodule_open = git_submodule_open(out_repo : Repository*, submodule : Submodule) : LibC::Int
+  fun submodule_open = git_submodule_open(out_repo  : Repository*, submodule : Submodule) : LibC::Int
   fun submodule_reload = git_submodule_reload(submodule : Submodule, force : LibC::Int) : LibC::Int
 
   fun submodule_status = git_submodule_status(out_status : LibC::UInt*, repo : Repository, name : LibC::Char*, ignore : SubmoduleIgnoreType) : LibC::Int
@@ -1842,7 +1842,7 @@ lib LibGit2
 
   fun object_lookup = git_object_lookup(object : Object*, repo : Repository, id : Oid*, type : ObjectType) : LibC::Int
   fun object_id = git_object_id(obj : Object) : Oid*
-  fun object_type = git_object_type(obj : Object) : ObjectType
+  fun object_type = git_object_type(obj    : Object) : ObjectType
   fun object_peel = git_object_peel(peeled : Object*, object : Object, target_type : ObjectType) : LibC::Int
   fun object_free = git_object_free(object : Object)
 
@@ -1892,6 +1892,7 @@ lib LibGit2
   fun remote_fetch = git_remote_fetch(remote : Remote, refspecs : Strarray*, opts : FetchOptions*, reflog_message : LibC::Char*) : LibC::Int
   fun remote_push = git_remote_push(remote : Remote, refspecs : Strarray*, opts : PushOptions*) : LibC::Int
   fun remote_prune = git_remote_prune(remote : Remote, callbacks : RemoteCallbacks*) : LibC::Int
+  fun remote_delete = git_remote_delete(repo : Repository, name : LibC::Char*) : LibC::Int
 
   fun transaction_new = git_transaction_new(out_tx : Transaction*, repo : Repository) : LibC::Int
   fun transaction_lock_ref = git_transaction_lock_ref(tx : Transaction, refname : LibC::Char*) : LibC::Int

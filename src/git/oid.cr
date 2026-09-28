@@ -17,6 +17,10 @@ struct Git::Oid
     new(pointer.value)
   end
 
+  def self.zero : Oid
+    new(LibGit2::Oid.new)
+  end
+
   def zero? : Bool
     raw = @raw
     LibGit2.oid_is_zero(pointerof(raw)) == 1

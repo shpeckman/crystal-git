@@ -264,6 +264,126 @@ class Git::Stream
     Slot(Bool).new(queue(Commands::WriteCommitGraph.new(split_strategy)))
   end
 
+  def amend(message : String? = nil) : Slot(Oid)
+    Slot(Oid).new(queue(Commands::Amend.new(message)))
+  end
+
+  def merge_base(one : String, two : String) : Slot(Oid)
+    Slot(Oid).new(queue(Commands::MergeBase.new(one, two)))
+  end
+
+  def remote_add(name : String, url : String) : Slot(String)
+    Slot(String).new(queue(Commands::RemoteAdd.new(name, url)))
+  end
+
+  def remote_remove(name : String) : Slot(String)
+    Slot(String).new(queue(Commands::RemoteRemove.new(name)))
+  end
+
+  def remote_list : Slot(Array(String))
+    Slot(Array(String)).new(queue(Commands::RemoteList.new))
+  end
+
+  def config_get(name : String) : Slot(String?)
+    Slot(String?).new(queue(Commands::ConfigGet.new(name)))
+  end
+
+  def config_set(name : String, value : String) : Slot(String)
+    Slot(String).new(queue(Commands::ConfigSet.new(name, value)))
+  end
+
+  def config_unset(name : String) : Slot(String)
+    Slot(String).new(queue(Commands::ConfigUnset.new(name)))
+  end
+
+  def config_list(glob : String? = nil) : Slot(Array(ConfigItem))
+    Slot(Array(ConfigItem)).new(queue(Commands::ConfigList.new(glob)))
+  end
+
+  def diff(paths : Array(String) = [] of String, *, staged : Bool = false) : Slot(Array(DiffEntry))
+    Slot(Array(DiffEntry)).new(queue(Commands::Diff.new(nil, nil, staged, paths, false)))
+  end
+
+  def diff(target : String, paths : Array(String) = [] of String) : Slot(Array(DiffEntry))
+    Slot(Array(DiffEntry)).new(queue(Commands::Diff.new(target, nil, false, paths, false)))
+  end
+
+  def diff(from : String, to : String, paths : Array(String) = [] of String) : Slot(Array(DiffEntry))
+    Slot(Array(DiffEntry)).new(queue(Commands::Diff.new(from, to, false, paths, false)))
+  end
+
+  def diff_patch(paths : Array(String) = [] of String, *, staged : Bool = false) : Slot(String)
+    Slot(String).new(queue(Commands::Diff.new(nil, nil, staged, paths, true)))
+  end
+
+  def diff_patch(target : String, paths : Array(String) = [] of String) : Slot(String)
+    Slot(String).new(queue(Commands::Diff.new(target, nil, false, paths, true)))
+  end
+
+  def diff_patch(from : String, to : String, paths : Array(String) = [] of String) : Slot(String)
+    Slot(String).new(queue(Commands::Diff.new(from, to, false, paths, true)))
+  end
+
+  def read_blob(spec : String) : Slot(Bytes)
+    Slot(Bytes).new(queue(Commands::BlobRead.new(spec)))
+  end
+
+  def read_object(spec : String) : Slot(ObjectData)
+    Slot(ObjectData).new(queue(Commands::ObjectRead.new(spec)))
+  end
+
+  def tree_list(rev : String = "HEAD", path : String = "", recursive : Bool = false) : Slot(Array(TreeEntryInfo))
+    Slot(Array(TreeEntryInfo)).new(queue(Commands::TreeList.new(rev, path, recursive)))
+  end
+
+  def blame(path : String, *, newest : String? = nil, oldest : String? = nil, min_line : Int32? = nil, max_line : Int32? = nil) : Slot(Array(BlameEntry))
+    Slot(Array(BlameEntry)).new(queue(Commands::Blame.new(path, newest, oldest, min_line.try(&.to_u64), max_line.try(&.to_u64))))
+  end
+
+  def reflog(ref : String = "HEAD") : Slot(Array(ReflogEntry))
+    Slot(Array(ReflogEntry)).new(queue(Commands::Reflog.new(ref)))
+  end
+
+  def worktree_list : Slot(Array(LinkedWorktree))
+    Slot(Array(LinkedWorktree)).new(queue(Commands::ListWorktrees.new))
+  end
+
+  def worktree_add(name : String, path : String, ref : String? = nil) : Slot(String)
+    Slot(String).new(queue(Commands::AddWorktree.new(name, path, ref)))
+  end
+
+  def worktree_remove(name : String, force : Bool = false) : Slot(String)
+    Slot(String).new(queue(Commands::RemoveWorktree.new(name, force)))
+  end
+
+  def worktree_prune : Slot(Int32)
+    Slot(Int32).new(queue(Commands::PruneWorktrees.new))
+  end
+
+  def submodule_list : Slot(Array(SubmoduleEntry))
+    Slot(Array(SubmoduleEntry)).new(queue(Commands::ListSubmodules.new))
+  end
+
+  def submodule_status(name : String) : Slot(SubmoduleEntry)
+    Slot(SubmoduleEntry).new(queue(Commands::SubmoduleStatus.new(name)))
+  end
+
+  def submodule_add(url : String, path : String, branch : String? = nil) : Slot(String)
+    Slot(String).new(queue(Commands::AddSubmodule.new(url, path, branch)))
+  end
+
+  def submodule_init(name : String, overwrite : Bool = false) : Slot(String)
+    Slot(String).new(queue(Commands::InitSubmodule.new(name, overwrite)))
+  end
+
+  def submodule_update(name : String, init : Bool = true) : Slot(String)
+    Slot(String).new(queue(Commands::UpdateSubmodule.new(name, init)))
+  end
+
+  def submodule_sync(name : String? = nil) : Slot(Int32)
+    Slot(Int32).new(queue(Commands::SyncSubmodules.new(name)))
+  end
+
   def [](slot : Slot(T)) : T? forall T
     return nil unless slot.valid?
     @values[slot.index]?.as?(T)

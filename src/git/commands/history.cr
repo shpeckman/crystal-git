@@ -103,6 +103,63 @@ module Git::Commands
     end
   end
 
+  class Amend < Command
+    describe(:amend, CLEAN_ONLY, State::Clean,
+      Predicate::None, Predicate::Bare | Predicate::UnbornHead | Predicate::Conflicted,
+      Predicate::None, Predicate::DirtyIndex,
+      Reversibility::RefOnly)
+
+    def initialize(@message : String?)
+    end
+
+    def execute(repo : Repo, undo : Array(Undo)) : Ok(Value) | Err
+      record = Undo.position(repo)
+      return record if record.is_a?(Err)
+      undo << record.value
+
+      index = repo.index
+      return index if index.is_a?(Err)
+
+      signature = repo.signature
+      return signature if signature.is_a?(Err)
+
+      head = repo.head_oid
+      return head if head.is_a?(Err)
+      raw_head = head.value.raw
+
+      target = uninitialized LibGit2::Commit
+      if err = Git.check(LibGit2.commit_lookup(pointerof(target), repo.handle, pointerof(raw_head)))
+        return err
+      end
+
+      tree_oid = uninitialized LibGit2::Oid
+      if err = Git.check(LibGit2.index_write_tree(pointerof(tree_oid), index.value))
+        LibGit2.commit_free(target)
+        return err
+      end
+
+      tree = uninitialized LibGit2::Tree
+      if err = Git.check(LibGit2.tree_lookup(pointerof(tree), repo.handle, pointerof(tree_oid)))
+        LibGit2.commit_free(target)
+        return err
+      end
+
+      created = uninitialized LibGit2::Oid
+      result = LibGit2.commit_amend(
+        pointerof(created), target, "HEAD",
+        nil, signature.value, nil, Native.pointer(@message),
+        tree)
+
+      LibGit2.tree_free(tree)
+      LibGit2.commit_free(target)
+
+      if err = Git.check(result)
+        return err
+      end
+      Ok(Value).new(Oid.new(created))
+    end
+  end
+
   class SetHead < Command
     describe(:set_head, CLEAN_ONLY, nil,
       Predicate::None, Predicate::None,

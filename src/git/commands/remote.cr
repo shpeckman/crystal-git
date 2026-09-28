@@ -1,5 +1,76 @@
 # src/git/commands/remote.cr
 module Git::Commands
+  class RemoteAdd < Command
+    describe(:remote_add, StateSet::All, nil,
+      Predicate::None, Predicate::None,
+      Predicate::None, Predicate::None,
+      Reversibility::RefOnly)
+
+    def initialize(@name : String, @url : String)
+    end
+
+    def execute(repo : Repo, undo : Array(Undo)) : Ok(Value) | Err
+      remote = uninitialized LibGit2::Remote
+      if err = Git.check(LibGit2.remote_create(pointerof(remote), repo.handle, @name, @url))
+        return err
+      end
+      LibGit2.remote_free(remote)
+
+      undo << Undo::RemoteAdd.new(@name)
+      Ok(Value).new(@name)
+    end
+  end
+
+  class RemoteRemove < Command
+    describe(:remote_remove, StateSet::All, nil,
+      Predicate::None, Predicate::None,
+      Predicate::None, Predicate::None,
+      Reversibility::RefOnly)
+
+    def initialize(@name : String)
+    end
+
+    def execute(repo : Repo, undo : Array(Undo)) : Ok(Value) | Err
+      remote = uninitialized LibGit2::Remote
+      if err = Git.check(LibGit2.remote_lookup(pointerof(remote), repo.handle, @name))
+        return err
+      end
+
+      url = Native.text(LibGit2.remote_url(remote))
+      LibGit2.remote_free(remote)
+
+      if err = Git.check(LibGit2.remote_delete(repo.handle, @name))
+        return err
+      end
+
+      undo << Undo::RemoteRemove.new(@name, url)
+      Ok(Value).new(@name)
+    end
+  end
+
+  class RemoteList < Command
+    describe(:remote_list, StateSet::All, nil,
+      Predicate::None, Predicate::None,
+      Predicate::None, Predicate::None,
+      Reversibility::ReadOnly)
+
+    def execute(repo : Repo, undo : Array(Undo)) : Ok(Value) | Err
+      array = LibGit2::Strarray.new
+      if err = Git.check(LibGit2.remote_list(pointerof(array), repo.handle))
+        return err
+      end
+
+      names = Array(String).new(array.count.to_i32)
+      array.count.times do |position|
+        entry = array.strings[position]
+        names << String.new(entry) unless entry.null?
+      end
+
+      LibGit2.strarray_dispose(pointerof(array))
+      Ok(Value).new(names)
+    end
+  end
+
   class Fetch < Command
     describe(:fetch, StateSet::All, nil,
       Predicate::None, Predicate::None,

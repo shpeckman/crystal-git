@@ -42,6 +42,46 @@ class Git::Repo
     Ok(Repo).new(new(handle))
   end
 
+  def self.clone(url : String, path : String, bare : Bool = false, branch : String? = nil, credentials : Credentials? = nil) : Ok(Repo) | Err
+    if err = Library.acquire
+      return err
+    end
+
+    opts = uninitialized LibGit2::CloneOptions
+    if err = Git.check(LibGit2.clone_options_init(pointerof(opts), 1_u32))
+      Library.release
+      return err
+    end
+    opts.bare = bare ? 1 : 0
+    opts.checkout_branch = Native.pointer(branch) if branch
+
+    if credentials
+      session   = Credentials::Session.new(credentials)
+      callbacks = opts.fetch_opts.callbacks
+      callbacks.credentials = Credentials.callback
+      callbacks.payload = Box.box(session)
+      opts.fetch_opts.callbacks = callbacks
+    end
+
+    handle = uninitialized LibGit2::Repository
+    if err = Git.check(LibGit2.clone(pointerof(handle), url, path, pointerof(opts)))
+      Library.release
+      return err
+    end
+    Ok(Repo).new(new(handle))
+  end
+
+  def self.clone(url : String, path : String, bare : Bool = false, branch : String? = nil, credentials : Credentials? = nil, &)
+    result = clone(url, path, bare, branch, credentials)
+    return result if result.is_a?(Err)
+    repo = result.value
+    begin
+      yield repo
+    ensure
+      repo.close
+    end
+  end
+
   def initialize(@handle : LibGit2::Repository)
     @index       = Pointer(Void).null.as(LibGit2::Index)
     @signature   = Pointer(LibGit2::Signature).null
@@ -72,6 +112,33 @@ class Git::Repo
     end
     @signature = out_sig
     Ok(LibGit2::Signature*).new(out_sig)
+  end
+
+  def with_config(config_path : String? = nil, & : LibGit2::Config, LibGit2::Config -> T) : Ok(T) | Err forall T
+    path = config_path
+    unless path
+      gitdir = Native.gitdir(self)
+      return gitdir if gitdir.is_a?(Err)
+      path = File.join(gitdir.value, "config")
+    end
+
+    live = uninitialized LibGit2::Config
+    if err = Git.check(LibGit2.config_open_ondisk(pointerof(live), path))
+      return err
+    end
+
+    snapshot = uninitialized LibGit2::Config
+    if err = Git.check(LibGit2.config_snapshot(pointerof(snapshot), live))
+      LibGit2.config_free(live)
+      return err
+    end
+
+    begin
+      Ok(T).new(yield live, snapshot)
+    ensure
+      LibGit2.config_free(snapshot)
+      LibGit2.config_free(live)
+    end
   end
 
   def head_oid : Ok(Oid) | Err
