@@ -94,4 +94,14 @@ module Git
       LibGit2::FetchPrune.new(value)
     end
   end
+
+  enum ApplyLocation
+    Workdir = 0
+    Index   = 1
+    Both    = 2
+
+    def to_native : LibGit2::ApplyLocation
+      LibGit2::ApplyLocation.new(value)
+    end
+  end
 end

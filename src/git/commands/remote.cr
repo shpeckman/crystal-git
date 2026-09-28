@@ -71,6 +71,140 @@ module Git::Commands
     end
   end
 
+  class RemoteRename < Command
+    describe(:remote_rename, StateSet::All, nil,
+      Predicate::None, Predicate::None,
+      Predicate::None, Predicate::None,
+      Reversibility::RefOnly)
+
+    def initialize(@name : String, @new_name : String)
+    end
+
+    def execute(repo : Repo, undo : Array(Undo)) : Ok(Value) | Err
+      problems = LibGit2::Strarray.new
+      if err = Git.check(LibGit2.remote_rename(pointerof(problems), repo.handle, @name, @new_name))
+        return err
+      end
+
+      warnings = Array(String).new(problems.count.to_i32)
+      problems.count.times do |position|
+        entry = problems.strings[position]
+        warnings << String.new(entry) unless entry.null?
+      end
+      LibGit2.strarray_dispose(pointerof(problems))
+
+      undo << Undo::RemoteRename.new(@new_name, @name)
+      Ok(Value).new(warnings)
+    end
+  end
+
+  class RemoteSetUrl < Command
+    describe(:remote_set_url, StateSet::All, nil,
+      Predicate::None, Predicate::None,
+      Predicate::None, Predicate::None,
+      Reversibility::RefOnly)
+
+    def initialize(@name : String, @url : String)
+    end
+
+    def execute(repo : Repo, undo : Array(Undo)) : Ok(Value) | Err
+      remote = uninitialized LibGit2::Remote
+      if err = Git.check(LibGit2.remote_lookup(pointerof(remote), repo.handle, @name))
+        return err
+      end
+      prior = Native.text(LibGit2.remote_url(remote))
+      LibGit2.remote_free(remote)
+
+      if err = Git.check(LibGit2.remote_set_url(repo.handle, @name, @url))
+        return err
+      end
+
+      undo << Undo::RemoteSetUrl.new(@name, prior || @url)
+      Ok(Value).new(@url)
+    end
+  end
+
+  class RemoteGetUrl < Command
+    describe(:remote_get_url, StateSet::All, nil,
+      Predicate::None, Predicate::None,
+      Predicate::None, Predicate::None,
+      Reversibility::ReadOnly)
+
+    def initialize(@name : String)
+    end
+
+    def execute(repo : Repo, undo : Array(Undo)) : Ok(Value) | Err
+      remote = uninitialized LibGit2::Remote
+      if err = Git.check(LibGit2.remote_lookup(pointerof(remote), repo.handle, @name))
+        return err
+      end
+      url = Native.text(LibGit2.remote_url(remote))
+      LibGit2.remote_free(remote)
+      Ok(Value).new(url)
+    end
+  end
+
+  class RemoteHeads < Command
+    describe(:remote_heads, StateSet::All, nil,
+      Predicate::None, Predicate::None,
+      Predicate::None, Predicate::None,
+      Reversibility::ReadOnly)
+
+    def initialize(@remote : String, @credentials : Credentials?)
+    end
+
+    def execute(repo : Repo, undo : Array(Undo)) : Ok(Value) | Err
+      remote = uninitialized LibGit2::Remote
+      if err = Git.check(LibGit2.remote_lookup(pointerof(remote), repo.handle, @remote))
+        return err
+      end
+
+      callbacks = uninitialized LibGit2::RemoteCallbacks
+      if err = Git.check(LibGit2.remote_init_callbacks(pointerof(callbacks), 1_u32))
+        LibGit2.remote_free(remote)
+        return err
+      end
+
+      credentials = @credentials || repo.credentials
+      if credentials
+        session = Credentials::Session.new(credentials)
+        callbacks.credentials = Credentials.callback
+        callbacks.payload = Box.box(session)
+      end
+
+      result = Git.check(LibGit2.remote_connect(remote, LibGit2::Direction::FETCH, pointerof(callbacks), nil, nil))
+      if result
+        LibGit2.remote_free(remote)
+        return result
+      end
+
+      heads = uninitialized LibGit2::RemoteHead**
+      size = uninitialized LibC::SizeT
+      rc = LibGit2.remote_ls(pointerof(heads), pointerof(size), remote)
+
+      if err = Git.check(rc)
+        LibGit2.remote_free(remote)
+        return err
+      end
+
+      collected = Array(Git::RemoteHead).new(size.to_i32)
+      size.times do |position|
+        entry = heads[position]
+        next if entry.null?
+        head = entry.value
+        next if head.name.null?
+        collected << Git::RemoteHead.new(
+          String.new(head.name),
+          Oid.new(head.oid),
+          head.local == 1,
+          Native.text(head.symref_target))
+      end
+
+      LibGit2.remote_free(remote)
+      Ok(Value).new(collected)
+    end
+  end
+
   class Fetch < Command
     describe(:fetch, StateSet::All, nil,
       Predicate::None, Predicate::None,

@@ -112,4 +112,41 @@ describe "object inspection" do
       stream.run.error.should be_a(Git::Err)
     end
   end
+
+  it "hashes data without writing it" do
+    Fixture.with_repo("inspect_hash") do |repo, location|
+      Fixture.seed(repo, location)
+
+      stream = Git::Stream.new(repo)
+      slot   = stream.hash_object("hello\n")
+      stream.run.error.should be_nil
+      stream.seal
+
+      stream[slot].as(Git::Oid).hex.should eq("ce013625030ba8dba906f756967f9e9ca394464a")
+
+      read = Git::Stream.new(repo)
+      blob = read.read_blob("ce013625030ba8dba906f756967f9e9ca394464a")
+      read.run.error.should be_a(Git::Err)
+    end
+  end
+
+  it "writes a blob that can be read back" do
+    Fixture.with_repo("inspect_write_blob") do |repo, location|
+      Fixture.seed(repo, location)
+
+      stream = Git::Stream.new(repo)
+      slot   = stream.hash_object("stored content\n", write: true)
+      stream.run.error.should be_nil
+      stream.seal
+
+      oid = stream[slot].as(Git::Oid)
+
+      read = Git::Stream.new(repo)
+      blob = read.read_blob(oid.hex)
+      read.run.error.should be_nil
+      read.seal
+
+      String.new(read[blob].as(Bytes)).should eq("stored content\n")
+    end
+  end
 end

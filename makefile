@@ -41,7 +41,7 @@ bindings: check-deps
 	crystal spec spec/libgit2_spec.cr
 
 stream: check-deps
-	crystal spec spec/stream_spec.cr spec/commands_spec.cr spec/rollback_spec.cr spec/graph_spec.cr spec/clone_spec.cr spec/config_spec.cr spec/diff_spec.cr spec/amend_spec.cr spec/merge_base_spec.cr spec/remote_spec.cr spec/inspect_spec.cr spec/blame_spec.cr spec/reflog_spec.cr spec/worktree_spec.cr spec/submodule_spec.cr
+	crystal spec spec/stream_spec.cr spec/commands_spec.cr spec/rollback_spec.cr spec/graph_spec.cr spec/clone_spec.cr spec/config_spec.cr spec/diff_spec.cr spec/amend_spec.cr spec/merge_base_spec.cr spec/remote_spec.cr spec/inspect_spec.cr spec/blame_spec.cr spec/reflog_spec.cr spec/worktree_spec.cr spec/submodule_spec.cr spec/notes_spec.cr spec/describe_spec.cr spec/attrs_spec.cr spec/apply_spec.cr spec/mailmap_spec.cr spec/sign_spec.cr
 
 clean:
 	rm -rf tmp_*

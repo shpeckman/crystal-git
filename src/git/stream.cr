@@ -70,8 +70,8 @@ class Git::Stream
     Slot(UInt64).new(queue(Commands::Remove.new(pathspec)))
   end
 
-  def commit(message : String) : Slot(Oid)
-    Slot(Oid).new(queue(Commands::Commit.new(message)))
+  def commit(message : String, *, signer : (String -> String)? = nil) : Slot(Oid)
+    Slot(Oid).new(queue(Commands::Commit.new(message, signer)))
   end
 
   def set_head(refname : String) : Slot(String)
@@ -284,6 +284,22 @@ class Git::Stream
     Slot(Array(String)).new(queue(Commands::RemoteList.new))
   end
 
+  def remote_rename(name : String, new_name : String) : Slot(Array(String))
+    Slot(Array(String)).new(queue(Commands::RemoteRename.new(name, new_name)))
+  end
+
+  def remote_set_url(name : String, url : String) : Slot(String)
+    Slot(String).new(queue(Commands::RemoteSetUrl.new(name, url)))
+  end
+
+  def remote_get_url(name : String) : Slot(String?)
+    Slot(String?).new(queue(Commands::RemoteGetUrl.new(name)))
+  end
+
+  def remote_heads(remote : String = "origin", credentials : Credentials? = nil) : Slot(Array(RemoteHead))
+    Slot(Array(RemoteHead)).new(queue(Commands::RemoteHeads.new(remote, credentials)))
+  end
+
   def config_get(name : String) : Slot(String?)
     Slot(String?).new(queue(Commands::ConfigGet.new(name)))
   end
@@ -300,28 +316,52 @@ class Git::Stream
     Slot(Array(ConfigItem)).new(queue(Commands::ConfigList.new(glob)))
   end
 
-  def diff(paths : Array(String) = [] of String, *, staged : Bool = false) : Slot(Array(DiffEntry))
-    Slot(Array(DiffEntry)).new(queue(Commands::Diff.new(nil, nil, staged, paths, false)))
+  def diff(paths : Array(String) = [] of String, *, staged : Bool = false, renames : Bool = false) : Slot(Array(DiffEntry))
+    Slot(Array(DiffEntry)).new(queue(Commands::Diff.new(nil, nil, staged, paths, DiffOutput::Entries, renames)))
   end
 
-  def diff(target : String, paths : Array(String) = [] of String) : Slot(Array(DiffEntry))
-    Slot(Array(DiffEntry)).new(queue(Commands::Diff.new(target, nil, false, paths, false)))
+  def diff(target : String, paths : Array(String) = [] of String, *, renames : Bool = false) : Slot(Array(DiffEntry))
+    Slot(Array(DiffEntry)).new(queue(Commands::Diff.new(target, nil, false, paths, DiffOutput::Entries, renames)))
   end
 
-  def diff(from : String, to : String, paths : Array(String) = [] of String) : Slot(Array(DiffEntry))
-    Slot(Array(DiffEntry)).new(queue(Commands::Diff.new(from, to, false, paths, false)))
+  def diff(from : String, to : String, paths : Array(String) = [] of String, *, renames : Bool = false) : Slot(Array(DiffEntry))
+    Slot(Array(DiffEntry)).new(queue(Commands::Diff.new(from, to, false, paths, DiffOutput::Entries, renames)))
   end
 
-  def diff_patch(paths : Array(String) = [] of String, *, staged : Bool = false) : Slot(String)
-    Slot(String).new(queue(Commands::Diff.new(nil, nil, staged, paths, true)))
+  def diff_patch(paths : Array(String) = [] of String, *, staged : Bool = false, renames : Bool = false) : Slot(String)
+    Slot(String).new(queue(Commands::Diff.new(nil, nil, staged, paths, DiffOutput::Patch, renames)))
   end
 
-  def diff_patch(target : String, paths : Array(String) = [] of String) : Slot(String)
-    Slot(String).new(queue(Commands::Diff.new(target, nil, false, paths, true)))
+  def diff_patch(target : String, paths : Array(String) = [] of String, *, renames : Bool = false) : Slot(String)
+    Slot(String).new(queue(Commands::Diff.new(target, nil, false, paths, DiffOutput::Patch, renames)))
   end
 
-  def diff_patch(from : String, to : String, paths : Array(String) = [] of String) : Slot(String)
-    Slot(String).new(queue(Commands::Diff.new(from, to, false, paths, true)))
+  def diff_patch(from : String, to : String, paths : Array(String) = [] of String, *, renames : Bool = false) : Slot(String)
+    Slot(String).new(queue(Commands::Diff.new(from, to, false, paths, DiffOutput::Patch, renames)))
+  end
+
+  def diff_stats(paths : Array(String) = [] of String, *, staged : Bool = false, renames : Bool = false) : Slot(DiffStats)
+    Slot(DiffStats).new(queue(Commands::Diff.new(nil, nil, staged, paths, DiffOutput::Stats, renames)))
+  end
+
+  def diff_stats(target : String, paths : Array(String) = [] of String, *, renames : Bool = false) : Slot(DiffStats)
+    Slot(DiffStats).new(queue(Commands::Diff.new(target, nil, false, paths, DiffOutput::Stats, renames)))
+  end
+
+  def diff_stats(from : String, to : String, paths : Array(String) = [] of String, *, renames : Bool = false) : Slot(DiffStats)
+    Slot(DiffStats).new(queue(Commands::Diff.new(from, to, false, paths, DiffOutput::Stats, renames)))
+  end
+
+  def diff_files(paths : Array(String) = [] of String, *, staged : Bool = false, renames : Bool = false) : Slot(Array(FilePatch))
+    Slot(Array(FilePatch)).new(queue(Commands::Diff.new(nil, nil, staged, paths, DiffOutput::Files, renames)))
+  end
+
+  def diff_files(target : String, paths : Array(String) = [] of String, *, renames : Bool = false) : Slot(Array(FilePatch))
+    Slot(Array(FilePatch)).new(queue(Commands::Diff.new(target, nil, false, paths, DiffOutput::Files, renames)))
+  end
+
+  def diff_files(from : String, to : String, paths : Array(String) = [] of String, *, renames : Bool = false) : Slot(Array(FilePatch))
+    Slot(Array(FilePatch)).new(queue(Commands::Diff.new(from, to, false, paths, DiffOutput::Files, renames)))
   end
 
   def read_blob(spec : String) : Slot(Bytes)
@@ -334,6 +374,52 @@ class Git::Stream
 
   def tree_list(rev : String = "HEAD", path : String = "", recursive : Bool = false) : Slot(Array(TreeEntryInfo))
     Slot(Array(TreeEntryInfo)).new(queue(Commands::TreeList.new(rev, path, recursive)))
+  end
+
+  def hash_object(data : String, write : Bool = false) : Slot(Oid)
+    Slot(Oid).new(queue(Commands::HashObject.new(data.to_slice, write)))
+  end
+
+  def hash_object(data : Bytes, write : Bool = false) : Slot(Oid)
+    Slot(Oid).new(queue(Commands::HashObject.new(data, write)))
+  end
+
+  def describe(target : String? = nil, *, all : Bool = false, tags : Bool = false,
+               first_parent : Bool = false, long : Bool = false, always : Bool = false,
+               dirty : Bool = false, abbrev : Int32? = nil) : Slot(String)
+    Slot(String).new(queue(Commands::Describe.new(target, all, tags, first_parent, long, always, dirty, abbrev)))
+  end
+
+  def ignored?(path : String) : Slot(Bool)
+    Slot(Bool).new(queue(Commands::IsIgnored.new(path)))
+  end
+
+  def attr(path : String, name : String) : Slot(String?)
+    Slot(String?).new(queue(Commands::GetAttr.new(path, name)))
+  end
+
+  def note_add(target : String, message : String, *, ref : String? = nil, force : Bool = false) : Slot(Oid)
+    Slot(Oid).new(queue(Commands::AddNote.new(target, message, ref, force)))
+  end
+
+  def note_show(target : String, *, ref : String? = nil) : Slot(Note?)
+    Slot(Note?).new(queue(Commands::ShowNote.new(target, ref)))
+  end
+
+  def note_list(ref : String? = nil) : Slot(Array(NoteEntry))
+    Slot(Array(NoteEntry)).new(queue(Commands::ListNotes.new(ref)))
+  end
+
+  def note_remove(target : String, *, ref : String? = nil) : Slot(String)
+    Slot(String).new(queue(Commands::RemoveNote.new(target, ref)))
+  end
+
+  def apply(patch : String, location : ApplyLocation = ApplyLocation::Workdir) : Slot(Int32)
+    Slot(Int32).new(queue(Commands::ApplyPatch.new(patch, location)))
+  end
+
+  def mailmap_resolve(name : String, email : String) : Slot(Identity)
+    Slot(Identity).new(queue(Commands::MailmapResolve.new(name, email)))
   end
 
   def blame(path : String, *, newest : String? = nil, oldest : String? = nil, min_line : Int32? = nil, max_line : Int32? = nil) : Slot(Array(BlameEntry))

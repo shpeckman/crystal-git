@@ -119,4 +119,90 @@ describe "remote" do
       end
     end
   end
+
+  it "renames a remote and rolls it back" do
+    Fixture.with_repo("remote_rename") do |repo, location|
+      Fixture.seed(repo, location)
+
+      setup = Git::Stream.new(repo)
+      setup.remote_add("origin", "https://example.com/repo.git")
+      setup.run.error.should be_nil
+      setup.seal
+
+      stream   = Git::Stream.new(repo)
+      problems = stream.remote_rename("origin", "upstream")
+      listed   = stream.remote_list
+      url      = stream.remote_get_url("upstream")
+      stream.run.error.should be_nil
+
+      stream[problems].as(Array(String)).should be_empty
+      stream[listed].as(Array(String)).should eq(["upstream"])
+      stream[url].should eq("https://example.com/repo.git")
+
+      stream.rollback.should be_nil
+      stream.seal
+
+      check = Git::Stream.new(repo)
+      names = check.remote_list
+      check.run.error.should be_nil
+      check.seal
+
+      check[names].as(Array(String)).should eq(["origin"])
+    end
+  end
+
+  it "sets and gets a remote url with rollback" do
+    Fixture.with_repo("remote_set_url") do |repo, location|
+      Fixture.seed(repo, location)
+
+      setup = Git::Stream.new(repo)
+      setup.remote_add("origin", "https://example.com/old.git")
+      setup.run.error.should be_nil
+      setup.seal
+
+      stream = Git::Stream.new(repo)
+      stream.remote_set_url("origin", "https://example.com/new.git")
+      url = stream.remote_get_url("origin")
+      stream.run.error.should be_nil
+
+      stream[url].should eq("https://example.com/new.git")
+
+      stream.rollback.should be_nil
+      stream.seal
+
+      check    = Git::Stream.new(repo)
+      restored = check.remote_get_url("origin")
+      check.run.error.should be_nil
+      check.seal
+
+      check[restored].should eq("https://example.com/old.git")
+    end
+  end
+
+  it "lists remote heads without fetching" do
+    Fixture.with_repo("remote_heads_source") do |source, source_location|
+      head = Fixture.seed(source, source_location)
+
+      Fixture.with_repo("remote_heads_target") do |repo, location|
+        Fixture.seed(repo, location)
+
+        stream = Git::Stream.new(repo)
+        stream.remote_add("origin", source_location)
+        heads = stream.remote_heads("origin")
+        stream.run.error.should be_nil
+        stream.seal
+
+        refs   = stream[heads].as(Array(Git::RemoteHead))
+        master = refs.find { |h| h.name == "refs/heads/master" }
+        master.should_not be_nil
+        master.not_nil!.oid.should eq(head)
+
+        refs.none?(&.local).should be_true
+
+        check = Git::Stream.new(repo)
+        base  = check.merge_base("HEAD", "refs/remotes/origin/master")
+        check.run.error.should be_a(Git::Err)
+      end
+    end
+  end
 end

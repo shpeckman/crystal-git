@@ -37,7 +37,6 @@ lib LibGit2
   type ReflogEntry = Void*
   type Refspec = Void*
   type Remote = Void*
-  type RemoteHead = Void*
   type Repository = Void*
   type Revwalk = Void*
   type StatusList = Void*
@@ -1901,4 +1900,104 @@ lib LibGit2
   fun transaction_remove = git_transaction_remove(tx : Transaction, refname : LibC::Char*) : LibC::Int
   fun transaction_commit = git_transaction_commit(tx : Transaction) : LibC::Int
   fun transaction_free = git_transaction_free(tx : Transaction)
+
+  type DiffStats = Void*
+  type DescribeResult = Void*
+
+  fun diff_get_stats = git_diff_get_stats(out : DiffStats*, diff : Diff) : LibC::Int
+  fun diff_stats_files_changed = git_diff_stats_files_changed(stats : DiffStats) : LibC::SizeT
+  fun diff_stats_insertions = git_diff_stats_insertions(stats : DiffStats) : LibC::SizeT
+  fun diff_stats_deletions = git_diff_stats_deletions(stats : DiffStats) : LibC::SizeT
+  fun diff_stats_free = git_diff_stats_free(stats : DiffStats)
+  fun diff_from_buffer = git_diff_from_buffer(out : Diff*, content : LibC::Char*, content_len : LibC::SizeT) : LibC::Int
+
+  alias NoteForeachCb = (Oid*, Oid*, Void* -> LibC::Int)
+
+  fun note_foreach = git_note_foreach(repo : Repository, notes_ref : LibC::Char*, note_cb : NoteForeachCb, payload : Void*) : LibC::Int
+  fun note_read = git_note_read(out : Note*, repo : Repository, notes_ref : LibC::Char*, oid : Oid*) : LibC::Int
+  fun note_create = git_note_create(out : Oid*, repo : Repository, notes_ref : LibC::Char*, author : Signature*, committer : Signature*, oid : Oid*, note : LibC::Char*, force : LibC::Int) : LibC::Int
+  fun note_remove = git_note_remove(repo : Repository, notes_ref : LibC::Char*, author : Signature*, committer : Signature*, oid : Oid*) : LibC::Int
+  fun note_message = git_note_message(note : Note) : LibC::Char*
+  fun note_id = git_note_id(note : Note) : Oid*
+  fun note_author = git_note_author(note : Note) : Signature*
+  fun note_committer = git_note_committer(note : Note) : Signature*
+  fun note_free = git_note_free(note : Note)
+  fun note_default_notes_ref = git_note_default_notes_ref(out : Buf*, repo : Repository) : LibC::Int
+
+  enum DescribeStrategy
+    DEFAULT = 0
+    TAGS    = 1
+    ALL     = 2
+  end
+
+  struct DescribeOptions
+    version                     : LibC::UInt
+    max_candidates_tags         : LibC::UInt
+    describe_strategy           : LibC::UInt
+    pattern                     : LibC::Char*
+    only_follow_first_parent    : LibC::Int
+    show_commit_oid_as_fallback : LibC::Int
+  end
+
+  struct DescribeFormatOptions
+    version                : LibC::UInt
+    abbreviated_size       : LibC::UInt
+    always_use_long_format : LibC::Int
+    dirty_suffix           : LibC::Char*
+  end
+
+  fun describe_options_init = git_describe_options_init(opts : DescribeOptions*, version : LibC::UInt) : LibC::Int
+  fun describe_format_options_init = git_describe_format_options_init(opts : DescribeFormatOptions*, version : LibC::UInt) : LibC::Int
+  fun describe_commit = git_describe_commit(result : DescribeResult*, committish : Object, opts : DescribeOptions*) : LibC::Int
+  fun describe_workdir = git_describe_workdir(out : DescribeResult*, repo : Repository, opts : DescribeOptions*) : LibC::Int
+  fun describe_format = git_describe_format(out : Buf*, result : DescribeResult, opts : DescribeFormatOptions*) : LibC::Int
+  fun describe_result_free = git_describe_result_free(result : DescribeResult)
+
+  fun ignore_path_is_ignored = git_ignore_path_is_ignored(ignored : LibC::Int*, repo : Repository, path : LibC::Char*) : LibC::Int
+  fun attr_get = git_attr_get(value_out : LibC::Char**, repo : Repository, flags : UInt32, path : LibC::Char*, name : LibC::Char*) : LibC::Int
+
+  enum Direction
+    FETCH = 0
+    PUSH  = 1
+  end
+
+  struct RemoteHead
+    local         : LibC::Int
+    oid           : Oid
+    loid          : Oid
+    name          : LibC::Char*
+    symref_target : LibC::Char*
+  end
+
+  fun remote_rename = git_remote_rename(problems : Strarray*, repo : Repository, name : LibC::Char*, new_name : LibC::Char*) : LibC::Int
+  fun remote_set_url = git_remote_set_url(repo : Repository, remote : LibC::Char*, url : LibC::Char*) : LibC::Int
+  fun remote_connect = git_remote_connect(remote : Remote, direction : Direction, callbacks : RemoteCallbacks*, proxy_opts : Void*, custom_headers : Strarray*) : LibC::Int
+  fun remote_ls = git_remote_ls(out : RemoteHead***, size : LibC::SizeT*, remote : Remote) : LibC::Int
+
+  fun odb_hash = git_odb_hash(out : Oid*, data : Void*, len : LibC::SizeT, object_type : ObjectType) : LibC::Int
+
+  enum ApplyLocation
+    WORKDIR = 0
+    INDEX   = 1
+    BOTH    = 2
+  end
+
+  alias ApplyDeltaCb = (DiffDelta*, Void* -> LibC::Int)
+  alias ApplyHunkCb = (DiffHunk*, Void* -> LibC::Int)
+
+  struct ApplyOptions
+    version  : LibC::UInt
+    delta_cb : ApplyDeltaCb
+    hunk_cb  : ApplyHunkCb
+    payload  : Void*
+    flags    : UInt32
+  end
+
+  fun apply_options_init = git_apply_options_init(opts : ApplyOptions*, version : LibC::UInt) : LibC::Int
+  fun apply = git_apply(repo : Repository, diff : Diff, location : ApplyLocation, options : ApplyOptions*) : LibC::Int
+
+  fun mailmap_from_repository = git_mailmap_from_repository(out : Mailmap*, repo : Repository) : LibC::Int
+  fun mailmap_from_buffer = git_mailmap_from_buffer(out : Mailmap*, buf : LibC::Char*, len : LibC::SizeT) : LibC::Int
+  fun mailmap_free = git_mailmap_free(mm : Mailmap)
+  fun mailmap_resolve = git_mailmap_resolve(real_name : LibC::Char**, real_email : LibC::Char**, mm : Mailmap, name : LibC::Char*, email : LibC::Char*) : LibC::Int
 end

@@ -6,7 +6,8 @@ module Git::Commands
       Predicate::None, Predicate::None,
       Reversibility::ReadOnly)
 
-    def initialize(@from : String?, @to : String?, @staged : Bool, @paths : Array(String), @patch : Bool)
+    def initialize(@from : String?, @to : String?, @staged : Bool, @paths : Array(String),
+                   @output : DiffOutput, @renames : Bool)
     end
 
     def execute(repo : Repo, undo : Array(Undo)) : Ok(Value) | Err
@@ -14,7 +15,25 @@ module Git::Commands
       return built if built.is_a?(Err)
       diff = built.value
 
-      outcome = @patch ? render_patch(diff) : collect_entries(diff)
+      if @renames
+        find = uninitialized LibGit2::DiffFindOptions
+        if err = Git.check(LibGit2.diff_find_options_init(pointerof(find), 1_u32))
+          LibGit2.diff_free(diff)
+          return err
+        end
+        find.flags = LibGit2::DiffFindOption::RENAMES.value
+        if err = Git.check(LibGit2.diff_find_similar(diff, pointerof(find)))
+          LibGit2.diff_free(diff)
+          return err
+        end
+      end
+
+      outcome = case @output
+                in DiffOutput::Entries then collect_entries(diff)
+                in DiffOutput::Patch   then render_patch(diff)
+                in DiffOutput::Stats   then collect_stats(diff)
+                in DiffOutput::Files   then collect_files(diff)
+                end
       LibGit2.diff_free(diff)
       outcome
     end
@@ -93,14 +112,15 @@ module Git::Commands
         entries << DiffEntry.new(
           DiffStatus.from_native(record.status),
           old_path.null? ? "" : String.new(old_path),
-          new_path.null? ? "" : String.new(new_path))
+          new_path.null? ? "" : String.new(new_path),
+          record.similarity.to_i32)
       end
 
       Ok(Value).new(entries)
     end
 
     private def render_patch(diff : LibGit2::Diff) : Ok(Value) | Err
-      buffer = uninitialized LibGit2::Buf
+      buffer = LibGit2::Buf.new
       if err = Git.check(LibGit2.diff_to_buf(pointerof(buffer), diff, LibGit2::DiffFormat::PATCH))
         return err
       end
@@ -108,6 +128,85 @@ module Git::Commands
       patch = buffer.size == 0 ? "" : String.new(buffer.ptr, buffer.size)
       LibGit2.buf_dispose(pointerof(buffer))
       Ok(Value).new(patch)
+    end
+
+    private def collect_stats(diff : LibGit2::Diff) : Ok(Value) | Err
+      stats = uninitialized LibGit2::DiffStats
+      if err = Git.check(LibGit2.diff_get_stats(pointerof(stats), diff))
+        return err
+      end
+
+      result = DiffStats.new(
+        LibGit2.diff_stats_files_changed(stats).to_i32,
+        LibGit2.diff_stats_insertions(stats).to_i32,
+        LibGit2.diff_stats_deletions(stats).to_i32)
+      LibGit2.diff_stats_free(stats)
+      Ok(Value).new(result)
+    end
+
+    private def collect_files(diff : LibGit2::Diff) : Ok(Value) | Err
+      count   = LibGit2.diff_num_deltas(diff)
+      patches = Array(FilePatch).new(count.to_i32)
+
+      count.times do |position|
+        patch = uninitialized LibGit2::Patch
+        if err = Git.check(LibGit2.patch_from_diff(pointerof(patch), diff, position))
+          return err
+        end
+
+        file_patch = build_file_patch(patch)
+        LibGit2.patch_free(patch)
+        return file_patch if file_patch.is_a?(Err)
+        patches << file_patch.value
+      end
+
+      Ok(Value).new(patches)
+    end
+
+    private def build_file_patch(patch : LibGit2::Patch) : Ok(FilePatch) | Err
+      delta  = LibGit2.patch_get_delta(patch)
+      record = delta.value
+
+      hunk_count = LibGit2.patch_num_hunks(patch)
+      hunks      = Array(DiffHunkInfo).new(hunk_count.to_i32)
+
+      hunk_count.times do |hunk_idx|
+        hunk_out = uninitialized LibGit2::DiffHunk*
+        line_count = uninitialized LibC::SizeT
+        if err = Git.check(LibGit2.patch_get_hunk(pointerof(hunk_out), pointerof(line_count), patch, hunk_idx))
+          return err
+        end
+
+        hunk   = hunk_out.value
+        header = String.new(hunk.header.to_unsafe, {hunk.header_len, 128}.min).chomp
+        lines  = Array(DiffLineInfo).new(line_count.to_i32)
+
+        line_count.times do |line_idx|
+          line_out = uninitialized LibGit2::DiffLine*
+          if err = Git.check(LibGit2.patch_get_line_in_hunk(pointerof(line_out), patch, hunk_idx, line_idx))
+            return err
+          end
+
+          line    = line_out.value
+          content = String.new(line.content, line.content_len)
+          lines << DiffLineInfo.new(
+            LineOrigin.from_native(line.origin),
+            line.old_lineno < 0 ? nil : line.old_lineno,
+            line.new_lineno < 0 ? nil : line.new_lineno,
+            content)
+        end
+
+        hunks << DiffHunkInfo.new(header, hunk.old_start, hunk.old_lines, hunk.new_start, hunk.new_lines, lines)
+      end
+
+      old_path = record.old_file.path
+      new_path = record.new_file.path
+      Ok(FilePatch).new(FilePatch.new(
+        DiffStatus.from_native(record.status),
+        old_path.null? ? "" : String.new(old_path),
+        new_path.null? ? "" : String.new(new_path),
+        record.similarity.to_i32,
+        hunks))
     end
   end
 end

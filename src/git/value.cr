@@ -13,6 +13,9 @@ module Git
                 ConfigItem |
                 SubmoduleEntry |
                 LinkedWorktree |
+                Note |
+                Identity |
+                DiffStats |
                 Array(String) |
                 Array(StatusEntry) |
                 Array(StashEntry) |
@@ -24,7 +27,10 @@ module Git
                 Array(ReflogEntry) |
                 Array(TreeEntryInfo) |
                 Array(SubmoduleEntry) |
-                Array(LinkedWorktree)
+                Array(LinkedWorktree) |
+                Array(NoteEntry) |
+                Array(FilePatch) |
+                Array(RemoteHead)
 
   alias Outcome = Ok(Value) | Err
 

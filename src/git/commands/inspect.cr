@@ -151,4 +151,30 @@ module Git::Commands
         Oid.from(LibGit2.tree_entry_id(entry)))
     end
   end
+
+  class HashObject < Command
+    describe(:hash_object, StateSet::All, nil,
+      Predicate::None, Predicate::None,
+      Predicate::None, Predicate::None,
+      Reversibility::RefOnly)
+
+    def initialize(@data : Bytes, @write : Bool)
+    end
+
+    def execute(repo : Repo, undo : Array(Undo)) : Ok(Value) | Err
+      pointer = @data.empty? ? "".to_unsafe.as(Void*) : @data.to_unsafe.as(Void*)
+      raw = uninitialized LibGit2::Oid
+
+      result = if @write
+                 LibGit2.blob_create_from_buffer(pointerof(raw), repo.handle, pointer, @data.size.to_u64)
+               else
+                 LibGit2.odb_hash(pointerof(raw), pointer, @data.size.to_u64, LibGit2::ObjectType::BLOB)
+               end
+
+      if err = Git.check(result)
+        return err
+      end
+      Ok(Value).new(Oid.new(raw))
+    end
+  end
 end

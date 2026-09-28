@@ -6,7 +6,7 @@ module Git::Commands
       Predicate::None, Predicate::DirtyIndex,
       Reversibility::RefOnly, CLEAN_ONLY)
 
-    def initialize(@message : String)
+    def initialize(@message : String, @signer : Proc(String, String)?)
     end
 
     def execute(repo : Repo, undo : Array(Undo)) : Ok(Value) | Err
@@ -40,10 +40,14 @@ module Git::Commands
       handles = parents.value
 
       created = uninitialized LibGit2::Oid
-      result = LibGit2.commit_create(
-        pointerof(created), repo.handle, "HEAD",
-        author, author, nil, @message,
-        tree, handles.size.to_u64, handles.to_unsafe)
+      if signer = @signer
+        result = create_signed(repo, author, tree, handles, signer, pointerof(created))
+      else
+        result = LibGit2.commit_create(
+          pointerof(created), repo.handle, "HEAD",
+          author, author, nil, @message,
+          tree, handles.size.to_u64, handles.to_unsafe)
+      end
 
       handles.each { |parent| LibGit2.commit_free(parent) }
       LibGit2.tree_free(tree)
@@ -55,6 +59,44 @@ module Git::Commands
         return err
       end
       Ok(Value).new(Oid.new(created))
+    end
+
+    private def create_signed(repo : Repo, author : LibGit2::Signature*, tree : LibGit2::Tree,
+                              parents : Array(LibGit2::Commit), signer : Proc(String, String),
+                              created : LibGit2::Oid*) : LibC::Int
+      buffer = LibGit2::Buf.new
+      result = LibGit2.commit_create_buffer(pointerof(buffer), repo.handle,
+        author, author, nil, @message,
+        tree, parents.size.to_u64, parents.to_unsafe)
+      return result unless result == 0
+
+      content = String.new(buffer.ptr, buffer.size)
+      LibGit2.buf_dispose(pointerof(buffer))
+
+      signature = signer.call(content)
+
+      result = LibGit2.commit_create_with_signature(created, repo.handle, content, signature, nil)
+      return result unless result == 0
+
+      update_head(repo, created.value)
+    end
+
+    private def update_head(repo : Repo, oid : LibGit2::Oid) : LibC::Int
+      head = uninitialized LibGit2::Reference
+      result = LibGit2.reference_lookup(pointerof(head), repo.handle, "HEAD")
+      return result unless result == 0
+
+      terminal = "HEAD"
+      if LibGit2.reference_type(head) == LibGit2::ReferenceType::SYMBOLIC
+        target   = LibGit2.reference_symbolic_target(head)
+        terminal = String.new(target) unless target.null?
+      end
+      LibGit2.reference_free(head)
+
+      ref = uninitialized LibGit2::Reference
+      result = LibGit2.reference_create(pointerof(ref), repo.handle, terminal, pointerof(oid), 1, "commit: #{@message}")
+      LibGit2.reference_free(ref) if result == 0
+      result
     end
 
     private def collect_parents(repo : Repo) : Ok(Array(LibGit2::Commit)) | Err

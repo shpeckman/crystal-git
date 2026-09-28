@@ -232,6 +232,47 @@ module Git
     end
   end
 
+  class Undo::RemoteSetUrl < Undo
+    def initialize(@name : String, @prior : String)
+    end
+
+    def apply(repo : Repo) : Err?
+      Git.check(LibGit2.remote_set_url(repo.handle, @name, @prior))
+    end
+  end
+
+  class Undo::RemoteRename < Undo
+    def initialize(@current : String, @prior : String)
+    end
+
+    def apply(repo : Repo) : Err?
+      problems = LibGit2::Strarray.new
+      result   = Git.check(LibGit2.remote_rename(pointerof(problems), repo.handle, @current, @prior))
+      LibGit2.strarray_dispose(pointerof(problems))
+      result
+    end
+  end
+
+  class Undo::NoteSet < Undo
+    def initialize(@ref : String?, @object : Oid, @prior : String?)
+    end
+
+    def apply(repo : Repo) : Err?
+      signature = repo.signature
+      return signature if signature.is_a?(Err)
+
+      raw = @object.raw
+      if prior = @prior
+        created = uninitialized LibGit2::Oid
+        Git.check(LibGit2.note_create(pointerof(created), repo.handle, Native.pointer(@ref),
+          signature.value, signature.value, pointerof(raw), prior, 1))
+      else
+        Git.check(LibGit2.note_remove(repo.handle, Native.pointer(@ref),
+          signature.value, signature.value, pointerof(raw)))
+      end
+    end
+  end
+
   class Undo::WorktreeAdd < Undo
     def initialize(@name : String, @path : String)
     end

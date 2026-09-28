@@ -104,4 +104,50 @@ module Git::Commands
       Ok(Value).new(names)
     end
   end
+
+  class IsIgnored < Command
+    describe(:ignored, StateSet::All, nil,
+      Predicate::None, Predicate::Bare,
+      Predicate::None, Predicate::None,
+      Reversibility::ReadOnly)
+
+    def initialize(@path : String)
+    end
+
+    def execute(repo : Repo, undo : Array(Undo)) : Ok(Value) | Err
+      ignored = uninitialized LibC::Int
+      if err = Git.check(LibGit2.ignore_path_is_ignored(pointerof(ignored), repo.handle, @path))
+        return err
+      end
+      Ok(Value).new(ignored == 1)
+    end
+  end
+
+  class GetAttr < Command
+    describe(:attr, StateSet::All, nil,
+      Predicate::None, Predicate::Bare,
+      Predicate::None, Predicate::None,
+      Reversibility::ReadOnly)
+
+    def initialize(@path : String, @name : String)
+    end
+
+    def execute(repo : Repo, undo : Array(Undo)) : Ok(Value) | Err
+      value = uninitialized LibC::Char*
+      if err = Git.check(LibGit2.attr_get(pointerof(value), repo.handle, 0_u32, @path, @name))
+        return err
+      end
+
+      if value.null?
+        return Ok(Value).new(nil)
+      end
+
+      text = String.new(value)
+      case text
+      when "[internal]__TRUE__"  then Ok(Value).new("set")
+      when "[internal]__FALSE__" then Ok(Value).new("unset")
+      else                            Ok(Value).new(text)
+      end
+    end
+  end
 end
